@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31624.102
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Qcc", "Qcc.vcxproj", "{378B390C-BCC0-4540-8467-85DFB8A977FE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{378B390C-BCC0-4540-8467-85DFB8A977FE}.Debug|x64.ActiveCfg = Debug|x64
+		{378B390C-BCC0-4540-8467-85DFB8A977FE}.Debug|x64.Build.0 = Debug|x64
+		{378B390C-BCC0-4540-8467-85DFB8A977FE}.Release|x64.ActiveCfg = Release|x64
+		{378B390C-BCC0-4540-8467-85DFB8A977FE}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F59FDF12-6E83-4694-952E-9DF5C1CB07A0}
+	EndGlobalSection
+EndGlobal

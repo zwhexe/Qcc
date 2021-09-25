@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>QccClass</class>
+ <widget class="QMainWindow" name="QccClass">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>750</width>
+    <height>547</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Qcc</string>
+  </property>
+  <widget class="QWidget" name="centralWidget"/>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>750</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionExit"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+    <addaction name="actionZoom"/>
+    <addaction name="actionPan"/>
+    <addaction name="actionRotate"/>
+    <addaction name="separator"/>
+    <addaction name="actionReset"/>
+    <addaction name="actionFitAll"/>
+   </widget>
+   <widget class="QMenu" name="menuPrimitive">
+    <property name="title">
+     <string>Primitive</string>
+    </property>
+    <addaction name="actionBox"/>
+    <addaction name="actionCone"/>
+    <addaction name="actionSphere"/>
+    <addaction name="actionCylinder"/>
+    <addaction name="actionTorus"/>
+   </widget>
+   <widget class="QMenu" name="menuModeling">
+    <property name="title">
+     <string>Modeling</string>
+    </property>
+    <addaction name="actionFillet"/>
+    <addaction name="actionChamfer"/>
+    <addaction name="actionExtrude"/>
+    <addaction name="actionRovelve"/>
+    <addaction name="actionLoft"/>
+    <addaction name="separator"/>
+    <addaction name="actionCut"/>
+    <addaction name="actionFuse"/>
+    <addaction name="actionCommon"/>
+    <addaction name="separator"/>
+    <addaction name="actionHelix"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="actionAbout"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuView"/>
+   <addaction name="menuPrimitive"/>
+   <addaction name="menuModeling"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <widget class="QToolBar" name="mainToolBar">
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+  </widget>
+  <widget class="QStatusBar" name="statusBar"/>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+  </action>
+  <action name="actionZoom">
+   <property name="text">
+    <string>Zoom</string>
+   </property>
+  </action>
+  <action name="actionPan">
+   <property name="text">
+    <string>Pan</string>
+   </property>
+  </action>
+  <action name="actionRotate">
+   <property name="text">
+    <string>Rotate</string>
+   </property>
+  </action>
+  <action name="actionReset">
+   <property name="text">
+    <string>Reset</string>
+   </property>
+  </action>
+  <action name="actionFitAll">
+   <property name="text">
+    <string>FitAll</string>
+   </property>
+  </action>
+  <action name="actionBox">
+   <property name="text">
+    <string>Box</string>
+   </property>
+  </action>
+  <action name="actionCone">
+   <property name="text">
+    <string>Cone</string>
+   </property>
+  </action>
+  <action name="actionSphere">
+   <property name="text">
+    <string>Sphere</string>
+   </property>
+  </action>
+  <action name="actionCylinder">
+   <property name="text">
+    <string>Cylinder</string>
+   </property>
+  </action>
+  <action name="actionTorus">
+   <property name="text">
+    <string>Torus</string>
+   </property>
+  </action>
+  <action name="actionFillet">
+   <property name="text">
+    <string>Fillet</string>
+   </property>
+  </action>
+  <action name="actionChamfer">
+   <property name="text">
+    <string>Chamfer</string>
+   </property>
+  </action>
+  <action name="actionExtrude">
+   <property name="text">
+    <string>Extrude</string>
+   </property>
+  </action>
+  <action name="actionRovelve">
+   <property name="text">
+    <string>Rovelve</string>
+   </property>
+  </action>
+  <action name="actionLoft">
+   <property name="text">
+    <string>Loft</string>
+   </property>
+  </action>
+  <action name="actionCut">
+   <property name="text">
+    <string>Cut</string>
+   </property>
+  </action>
+  <action name="actionFuse">
+   <property name="text">
+    <string>Fuse</string>
+   </property>
+  </action>
+  <action name="actionCommon">
+   <property name="text">
+    <string>Common</string>
+   </property>
+  </action>
+  <action name="actionHelix">
+   <property name="text">
+    <string>Helix</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>About</string>
+   </property>
+  </action>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <resources>
+  <include location="Qcc.qrc"/>
+ </resources>
+ <connections/>
+</ui>
