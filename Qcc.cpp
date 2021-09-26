@@ -74,6 +74,7 @@ Qcc::~Qcc()
 
 void Qcc::createActions(void)
 {
+    /* connect ui menu's action with slots */
     /* File */
     connect(ui->actionExit, SIGNAL(triggered()), this, SLOT(close()));
     /* View */
@@ -100,7 +101,7 @@ void Qcc::createActions(void)
 
 void Qcc::createMenus(void)
 {
-
+/* MenuBar has been added by Qcc.ui */
 }
 
 void Qcc::createToolBars(void)
@@ -133,6 +134,14 @@ void Qcc::createToolBars(void)
     aToolBar = addToolBar(tr("&Help"));
     aToolBar->addAction(ui->actionAbout);
 
+}
+
+void Qcc::createStatusBar()
+{
+    QStatusBar* aStatusBar = new QStatusBar(this);
+    this->setStatusBar(aStatusBar);
+    ui->actionAbout->setStatusTip(tr("Qcc Demo Info"));
+    ui->actionFitAll->setStatusTip(tr("Fit Models View"));
 }
 
 void Qcc::about()

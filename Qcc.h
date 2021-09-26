@@ -26,6 +26,7 @@ protected:
     void createActions(void);
     void createMenus(void);
     void createToolBars(void);
+    void createStatusBar(void);
 
 private slots:
     /* Help */
