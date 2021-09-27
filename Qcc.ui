@@ -20,7 +20,7 @@
      <x>0</x>
      <y>0</y>
      <width>750</width>
-     <height>23</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -49,6 +49,7 @@
     <addaction name="actionSphere"/>
     <addaction name="actionCylinder"/>
     <addaction name="actionTorus"/>
+    <addaction name="actionWedge"/>
    </widget>
    <widget class="QMenu" name="menuModeling">
     <property name="title">
@@ -190,6 +191,11 @@
   <action name="actionAbout">
    <property name="text">
     <string>About</string>
+   </property>
+  </action>
+  <action name="actionWedge">
+   <property name="text">
+    <string>Wedge</string>
    </property>
   </action>
  </widget>

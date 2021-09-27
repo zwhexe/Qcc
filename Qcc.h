@@ -38,6 +38,7 @@ private slots:
     void makeSphere(void);
     void makeCylinder(void);
     void makeTorus(void);
+    void makeWedge(void);
     
     /* Modeling */
     void makeFillet(void);
