@@ -64,6 +64,7 @@ Qcc::Qcc(QWidget *parent)
     createActions();
     createMenus();
     createToolBars();
+    createStatusBar();
 }
 
 Qcc::~Qcc()
@@ -141,6 +142,7 @@ void Qcc::createStatusBar()
     QStatusBar* aStatusBar = new QStatusBar(this);
     this->setStatusBar(aStatusBar);
     ui->actionAbout->setStatusTip(tr("Qcc Demo Info"));
+    ui->actionReset->setStatusTip(tr("Reset Model View"));
     ui->actionFitAll->setStatusTip(tr("Fit Models View"));
 }
 
