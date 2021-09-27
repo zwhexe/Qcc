@@ -40,6 +40,7 @@
 #include <BRepPrimAPI_MakeTorus.hxx>
 #include <BRepPrimAPI_MakePrism.hxx>
 #include <BRepPrimAPI_MakeRevol.hxx>
+#include <BRepPrimAPI_MakeWedge.hxx>
 
 #include <BRepFilletAPI_MakeFillet.hxx>
 #include <BRepFilletAPI_MakeChamfer.hxx>
@@ -90,6 +91,7 @@ void Qcc::createActions(void)
     connect(ui->actionSphere, SIGNAL(triggered()), this, SLOT(makeSphere()));
     connect(ui->actionCylinder, SIGNAL(triggered()), this, SLOT(makeCylinder()));
     connect(ui->actionTorus, SIGNAL(triggered()), this, SLOT(makeTorus()));
+    connect(ui->actionWedge, SIGNAL(tirggered()), this, SLOT(makeWedge()));
     /* Modeling */
     connect(ui->actionFillet, SIGNAL(triggered()), this, SLOT(makeFillet()));
     connect(ui->actionChamfer, SIGNAL(triggered()), this, SLOT(makeChamfer()));
@@ -124,6 +126,7 @@ void Qcc::createToolBars(void)
     aToolBar->addAction(ui->actionSphere);
     aToolBar->addAction(ui->actionCylinder);
     aToolBar->addAction(ui->actionTorus);
+    aToolBar->addAction(ui->actionWedge);
 
     aToolBar = addToolBar(tr("&Modeling"));
     aToolBar->addAction(ui->actionFillet);
@@ -230,6 +233,18 @@ void Qcc::makeTorus()
 
     myQccView->getContext()->Display(anAisTorus, Standard_True);
     myQccView->getContext()->Display(anAisElbow, Standard_True);
+}
+
+void Qcc::makeWedge()
+{
+    gp_Ax2 anAxis;
+    anAxis.SetLocation(gp_Pnt(0.0, 0.0, 0.0));
+
+    TopoDS_Shape aTopoWedge = BRepPrimAPI_MakeWedge(anAxis, 1.0, 2.0, 3.0, 2.0).Shape();
+    Handle(AIS_Shape) anAisWedge = new AIS_Shape(aTopoWedge);
+
+    anAisWedge->SetColor(Quantity_NOC_YELLOWGREEN);
+    myQccView->getContext()->Display(anAisWedge, Standard_True);
 }
 
 void Qcc::makeFillet()
