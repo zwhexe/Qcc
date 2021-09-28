@@ -59,13 +59,19 @@ Qcc::Qcc(QWidget *parent)
 {
     ui->setupUi(this);
     myQccView = new QccView(this);
-
     setCentralWidget(myQccView);
 
     createActions();
     createMenus();
     createToolBars();
     createStatusBar();
+
+    QAction* testModel = new QAction;
+    testModel->setIconText(tr("Test"));
+    ui->menuPrimitive->addSeparator();
+    ui->menuPrimitive->addAction(testModel);
+    
+    connect(testModel, &QAction::triggered, this, &Qcc::makeTest);
 }
 
 Qcc::~Qcc()
@@ -99,6 +105,9 @@ void Qcc::createActions(void)
     connect(ui->actionExtrude, SIGNAL(triggered()), this, SLOT(makeExtrude()));
     connect(ui->actionRovelve, SIGNAL(triggered()), this, SLOT(makeRevol()));
     connect(ui->actionLoft, SIGNAL(triggered()), this, SLOT(makeLoft()));
+
+    connect(ui->actionCut, &QAction::triggered, this, &Qcc::testCut);
+    connect(ui->actionHelix, &QAction::triggered, this, &Qcc::testHelix);
     /* About */
     connect(ui->actionAbout, SIGNAL(triggered()), this, SLOT(about()));
 }
@@ -129,12 +138,17 @@ void Qcc::createToolBars(void)
     aToolBar->addAction(ui->actionTorus);
     aToolBar->addAction(ui->actionWedge);
 
+    this->addToolBarBreak();
+    
     aToolBar = addToolBar(tr("&Modeling"));
     aToolBar->addAction(ui->actionFillet);
     aToolBar->addAction(ui->actionChamfer);
     aToolBar->addAction(ui->actionExtrude);
     aToolBar->addAction(ui->actionRovelve);
     aToolBar->addAction(ui->actionLoft);
+    aToolBar->addAction(ui->actionHelix);
+    aToolBar->addSeparator();
+    aToolBar->addAction(ui->actionCut);
 
     aToolBar = addToolBar(tr("&Help"));
     aToolBar->addAction(ui->actionAbout);
@@ -240,13 +254,63 @@ void Qcc::makeTorus()
 void Qcc::makeWedge()
 {
     gp_Ax2 anAxis;
+    anAxis.SetLocation(gp_Pnt(0.0, 5.0, 0.0));
+
+    TopoDS_Shape aTopoWedge1 = BRepPrimAPI_MakeWedge(anAxis, 1.0, 2.0, 3.0, 2.0).Shape();
+    Handle(AIS_Shape) anAisWedge1 = new AIS_Shape(aTopoWedge1);
+
     anAxis.SetLocation(gp_Pnt(0.0, 10.0, 0.0));
+    TopoDS_Shape aTopoWedge2 = BRepPrimAPI_MakeWedge(1.0, 2.0, 3.0, -1.0, 0.0, 2.0, 3.0);
+    Handle(AIS_Shape) anAisWedge2 = new AIS_Shape(aTopoWedge2);
 
-    TopoDS_Shape aTopoWedge = BRepPrimAPI_MakeWedge(anAxis, 1.0, 2.0, 3.0, 2.0).Shape();
-    Handle(AIS_Shape) anAisWedge = new AIS_Shape(aTopoWedge);
+    anAisWedge1->SetColor(Quantity_NOC_YELLOW);
+    anAisWedge2->SetColor(Quantity_NOC_YELLOWGREEN);
+    myQccView->getContext()->Display(anAisWedge1, Standard_True);
+    myQccView->getContext()->Display(anAisWedge2, Standard_True);
+}
 
-    anAisWedge->SetColor(Quantity_NOC_YELLOW);
-    myQccView->getContext()->Display(anAisWedge, Standard_True);
+void Qcc::makeTest()
+{
+    gp_Ax1 anAxis;
+    anAxis.SetLocation(gp_Pnt(0.0, 70.0, 0.0));
+    Standard_Real ra = 1.0;
+    Standard_Real rb = 3.0;
+
+    // revol a vertex result is a circle edge.
+    TopoDS_Vertex aVertex = BRepBuilderAPI_MakeVertex(gp_Pnt(ra, 70.0, 0.0));
+    TopoDS_Shape aRevolVertex = BRepPrimAPI_MakeRevol(aVertex, anAxis);
+    Handle(AIS_Shape) aAisRevolVertex = new AIS_Shape(aRevolVertex);
+
+    // revol a vertex with M_PI result in halg circle edge
+    TopoDS_Vertex bVertex = BRepBuilderAPI_MakeVertex(gp_Pnt(rb, 70.0, 0.0));
+    TopoDS_Shape bRevolVertex = BRepPrimAPI_MakeRevol(bVertex, anAxis, M_PI);
+    Handle(AIS_Shape) bAisRevolVertex = new AIS_Shape(bRevolVertex);
+
+    aAisRevolVertex->SetColor(Quantity_NOC_LIMEGREEN);
+    bAisRevolVertex->SetColor(Quantity_NOC_LIMEGREEN);
+    myQccView->getContext()->Display(aAisRevolVertex, Standard_True);
+    myQccView->getContext()->Display(bAisRevolVertex, Standard_True);
+
+    // prism a vertex result is an straight edge
+    TopoDS_Vertex cVertex = BRepBuilderAPI_MakeVertex(gp_Pnt(0.0, 70.0+ra, 0.0));
+    TopoDS_Shape aPrismVertex = BRepPrimAPI_MakePrism(cVertex, gp_Vec(0.0, rb - ra, 0.0));
+    Handle(AIS_Shape) anAisPrismVertex = new AIS_Shape(aPrismVertex);
+    
+    anAisPrismVertex->SetColor(Quantity_NOC_LIMEGREEN);
+    myQccView->getContext()->Display(anAisPrismVertex, Standard_True);
+
+    // revol an edge result is a circle face and extrude it to a solid
+    TopoDS_Edge anRadius = BRepBuilderAPI_MakeEdge(gp_Pnt(ra, 70.0, 0.0), gp_Pnt(rb, 70.0, 0.0));
+    TopoDS_Shape revolRadius = BRepPrimAPI_MakeRevol(anRadius, anAxis);
+    TopoDS_Face revolFace = TopoDS::Face(revolRadius);
+    TopoDS_Shape extrudeSolid = BRepPrimAPI_MakePrism(revolFace, gp_Vec(0.0, 0.0, 5.0));
+
+    Handle(AIS_Shape) anAisRadius = new AIS_Shape(revolRadius);
+    Handle(AIS_Shape) anAisSolid = new AIS_Shape(extrudeSolid);
+    anAisRadius->SetColor(Quantity_NOC_LIMEGREEN);
+    anAisSolid->SetColor(Quantity_NOC_LIMEGREEN);
+    myQccView->getContext()->Display(anAisRadius, Standard_True);
+    myQccView->getContext()->Display(anAisSolid, Standard_True);
 }
 
 void Qcc::makeFillet()
@@ -412,4 +476,68 @@ void Qcc::makeLoft()
 
     myQccView->getContext()->Display(anAisShell, Standard_True);
     myQccView->getContext()->Display(anAisSolid, Standard_True);
+}
+
+void Qcc::testCut()
+{
+
+}
+
+void Qcc::testHelix()
+{
+    makeCylindericalHelix();
+}
+
+void Qcc::makeCylindericalHelix()
+{
+    Standard_Real aRadius = 3.0;
+    Standard_Real aPitch = 1.0;
+
+    // the pcurve is a 2d line in the parametric space.
+    // gp_Dir2d is normalized a gp_Vec2d()
+    gp_Lin2d aLine2d(gp_Pnt2d(0.0, 0.0), gp_Dir2d(aRadius, aPitch));
+    
+    Handle(Geom2d_TrimmedCurve) aSegment = GCE2d_MakeSegment(aLine2d, 0.0, M_PI * 2.0).Value();
+
+    Handle(Geom_CylindricalSurface) aCylinder = new Geom_CylindricalSurface(gp::XOY(), aRadius);
+
+    TopoDS_Edge aHelixEdge = BRepBuilderAPI_MakeEdge(aSegment, aCylinder, 0.0, 6.0 * M_PI).Edge();
+
+    gp_Trsf aTrsf;
+    aTrsf.SetTranslation(gp_Vec(0.0, 12.0, 0.0));
+    BRepBuilderAPI_Transform aTransform(aHelixEdge, aTrsf);
+
+    Handle(AIS_Shape) anAisHelixCurve = new AIS_Shape(aTransform.Shape());
+    Handle(AIS_Shape) anAisHelixEdge = new AIS_Shape(aHelixEdge);
+
+    myQccView->getContext()->Display(anAisHelixCurve, Standard_True);
+    myQccView->getContext()->Display(anAisHelixEdge, Standard_True);
+
+    //// sweep a circle profile along the helix curve.
+    //// there is no curve3d in the pcurve edge, so approx one.
+    //BRepLib::BuildCurve3d(aHelixEdge);
+
+    //gp_Ax2 anAxis;
+    //anAxis.SetDirection(gp_Dir(0.0, 4.0, 1.0));
+    //anAxis.SetLocation(gp_Pnt(aRadius, 0.0, 0.0));
+
+    //gp_Circ aProfileCircle(anAxis, 0.3);
+
+    //TopoDS_Edge aProfileEdge = BRepBuilderAPI_MakeEdge(aProfileCircle).Edge();
+    //TopoDS_Wire aProfileWire = BRepBuilderAPI_MakeWire(aProfileEdge).Wire();
+    //TopoDS_Face aProfileFace = BRepBuilderAPI_MakeFace(aProfileWire).Face();
+
+    //TopoDS_Wire aHelixWire = BRepBuilderAPI_MakeWire(aHelixEdge).Wire();
+
+    //BRepOffsetAPI_MakePipe aPipeMaker(aHelixWire, aProfileFace);
+
+    //if (aPipeMaker.IsDone())
+    //{
+    //    aTrsf.SetTranslation(gp_Vec(8.0, 120.0, 0.0));
+    //    BRepBuilderAPI_Transform aPipeTransform(aPipeMaker.Shape(), aTrsf);
+
+    //    Handle(AIS_Shape) anAisPipe = new AIS_Shape(aPipeTransform.Shape());
+    //    anAisPipe->SetColor(Quantity_NOC_CORAL);
+    //    myQccView->getContext()->Display(anAisPipe, Standard_True);
+    //}
 }
