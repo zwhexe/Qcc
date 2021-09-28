@@ -51,6 +51,7 @@
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepAlgoAPI_Fuse.hxx>
 #include <BRepAlgoAPI_Common.hxx>
+#include <BRepTools.hxx>
 
 #include <AIS_Shape.hxx>
 
@@ -66,12 +67,12 @@ Qcc::Qcc(QWidget *parent)
     createToolBars();
     createStatusBar();
 
-    QAction* testModel = new QAction;
-    testModel->setIconText(tr("Test"));
+    QAction* hollow = new QAction;
+    hollow->setIconText(tr("Hollow"));
     ui->menuPrimitive->addSeparator();
-    ui->menuPrimitive->addAction(testModel);
+    ui->menuPrimitive->addAction(hollow);
     
-    connect(testModel, &QAction::triggered, this, &Qcc::makeTest);
+    connect(hollow, &QAction::triggered, this, &Qcc::makeHollow);
 }
 
 Qcc::~Qcc()
@@ -269,7 +270,7 @@ void Qcc::makeWedge()
     myQccView->getContext()->Display(anAisWedge2, Standard_True);
 }
 
-void Qcc::makeTest()
+void Qcc::makeHollow()
 {
     gp_Ax1 anAxis;
     anAxis.SetLocation(gp_Pnt(0.0, 70.0, 0.0));
@@ -480,7 +481,35 @@ void Qcc::makeLoft()
 
 void Qcc::testCut()
 {
+    gp_Ax2 anAxis;
+    anAxis.SetLocation(gp_Pnt(0.0, 90.0, 0.0));
 
+    TopoDS_Shape aTopoBox = BRepPrimAPI_MakeBox(anAxis, 3.0, 4.0, 5.0).Shape();
+    TopoDS_Shape aTopoSphere = BRepPrimAPI_MakeSphere(anAxis, 2.5).Shape();
+    TopoDS_Shape aCuttedShape1 = BRepAlgoAPI_Cut(aTopoBox, aTopoSphere);
+    TopoDS_Shape aCuttedShape2 = BRepAlgoAPI_Cut(aTopoSphere, aTopoBox);
+
+    gp_Trsf aTrsf;
+    aTrsf.SetTranslation(gp_Vec(8.0, 0.0, 0.0));
+    BRepBuilderAPI_Transform aTransform1(aCuttedShape1, aTrsf);
+
+    aTrsf.SetTranslation(gp_Vec(16.0, 0.0, 0.0));
+    BRepBuilderAPI_Transform aTransform2(aCuttedShape2, aTrsf);
+
+    Handle(AIS_Shape) anAisBox = new AIS_Shape(aTopoBox);
+    Handle(AIS_Shape) anAisSphere = new AIS_Shape(aTopoSphere);
+    Handle(AIS_Shape) anAisCuttedShape1 = new AIS_Shape(aTransform1.Shape());
+    Handle(AIS_Shape) anAisCuttedShape2 = new AIS_Shape(aTransform2.Shape());
+
+    anAisBox->SetColor(Quantity_NOC_SPRINGGREEN);
+    anAisSphere->SetColor(Quantity_NOC_STEELBLUE);
+    anAisCuttedShape1->SetColor(Quantity_NOC_TAN);
+    anAisCuttedShape2->SetColor(Quantity_NOC_SALMON);
+
+    myQccView->getContext()->Display(anAisBox, Standard_True);
+    myQccView->getContext()->Display(anAisSphere, Standard_True);
+    myQccView->getContext()->Display(anAisCuttedShape1, Standard_True);
+    myQccView->getContext()->Display(anAisCuttedShape2, Standard_True);
 }
 
 void Qcc::testHelix()
@@ -540,4 +569,48 @@ void Qcc::makeCylindericalHelix()
     //    anAisPipe->SetColor(Quantity_NOC_CORAL);
     //    myQccView->getContext()->Display(anAisPipe, Standard_True);
     //}
+}
+
+void Qcc::makeFaceHollow()
+{
+    gp_Pln aPlane;
+
+    gp_Circ aCircle1(gp::XOY(), 1.0);
+    gp_Circ aCircle2(gp::XOY(), 1.0);
+    gp_Circ aCircle3(gp::XOY(), 1.0);
+
+    aCircle1.SetLocation(gp_Pnt(3.0, 3.0, 0.0));
+    aCircle2.SetLocation(gp_Pnt(7.0, 3.0, 0.0));
+    aCircle3.SetLocation(gp_Pnt(3.0, 7.0, 0.0));
+
+    BRepBuilderAPI_MakeEdge anEdgeMaker1(aCircle1);
+    BRepBuilderAPI_MakeEdge anEdgeMaker2(aCircle2);
+    BRepBuilderAPI_MakeEdge anEdgeMaker3(aCircle3);
+
+    BRepBuilderAPI_MakeWire aWireMaker1(anEdgeMaker1.Edge());
+    BRepBuilderAPI_MakeWire aWireMaker2(anEdgeMaker2.Edge());
+    BRepBuilderAPI_MakeWire aWireMaker3(anEdgeMaker3.Edge());
+
+    BRepBuilderAPI_MakeFace aFaceMaker(aPlane, 0.0, 10.0, 0.0, 10.0);
+
+    if (aWireMaker1.IsDone())
+    {
+        aFaceMaker.Add(aWireMaker1.Wire());
+    }
+
+    if (aWireMaker2.IsDone())
+    {
+        aFaceMaker.Add(aWireMaker2.Wire());
+    }
+
+    if (aWireMaker3.IsDone())
+    {
+        aFaceMaker.Add(aWireMaker3.Wire());
+    }
+
+    if (aFaceMaker.IsDone())
+    {
+        BRepTools::Write(aFaceMaker.Shape(), "d:/face.brep");
+    }
+
 }
