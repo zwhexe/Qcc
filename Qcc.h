@@ -28,6 +28,8 @@ protected:
     void createToolBars(void);
     void createStatusBar(void);
 
+    void makeCylindericalHelix(void);
+
 private slots:
     /* Help */
     void about(void);
@@ -38,6 +40,9 @@ private slots:
     void makeSphere(void);
     void makeCylinder(void);
     void makeTorus(void);
+    void makeWedge(void);
+    void makeHollow(void);
+    void makeFaceHole(void);
     
     /* Modeling */
     void makeFillet(void);
@@ -45,6 +50,9 @@ private slots:
     void makeExtrude(void);
     void makeRevol(void);
     void makeLoft(void);
+
+    void testCut(void);
+    void testHelix(void);
 
 private:
     Ui::QccClass *ui;
