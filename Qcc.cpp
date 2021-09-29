@@ -208,12 +208,12 @@ void Qcc::makeCone()
 void Qcc::makeSphere()
 {
     gp_Ax2 anAxis;
-    anAxis.SetLocation(gp_Pnt(0.0, 0.0, 0.0));
+    anAxis.SetLocation(gp_Pnt(6.0, 6.0, 10.5));
 
-    TopoDS_Shape aTopoSphere = BRepPrimAPI_MakeSphere(anAxis, 3.0).Shape();
+    TopoDS_Shape aTopoSphere = BRepPrimAPI_MakeSphere(anAxis, 2.5).Shape();
     Handle(AIS_Shape) anAisShpere = new AIS_Shape(aTopoSphere);
 
-    anAisShpere->SetColor(Quantity_NOC_BLUE1);
+    anAisShpere->SetColor(Quantity_NOC_BLANCHEDALMOND);
     myQccView->getContext()->Display(anAisShpere, Standard_True);
 }
 
@@ -259,12 +259,12 @@ void Qcc::makeTorus()
 
 void Qcc::makeWedge()
 {
-    Standard_Real dx = 2.0;
-    Standard_Real dy = 5.0;
+    Standard_Real dx = 12.0;
+    Standard_Real dy = 8.0;
     Standard_Real dz = 1.5;
-    Standard_Real xmin = -5.0;
+    Standard_Real xmin = 3.0;
     Standard_Real zmin = 0.0;
-    Standard_Real xmax = 7.0;
+    Standard_Real xmax = 9.0;
     Standard_Real zmax = 1.5;
     Standard_Real ltx = 4.0;
 
@@ -275,19 +275,28 @@ void Qcc::makeWedge()
     //anAisWedge1->SetColor(Quantity_NOC_YELLOW);
     //myQccView->getContext()->Display(anAisWedge1, Standard_True);
 
-    anAx2.SetLocation(gp_Pnt(5.0, 0.0, 0.0));
+    anAx2.SetLocation(gp_Pnt(0.0, 0.0, 0.0));
     TopoDS_Shape aTopoWedge2 = BRepPrimAPI_MakeWedge(anAx2, dx, dy, dz, xmin, zmin, xmax, zmax);
    
-    
-    gp_Trsf aTrsf1, aTrsf2;
-    gp_Ax1 anAx1(gp_Pnt(0.0, 5.0, 1.5), gp_Dir(-1.0, 0.0, 0.0));
+    gp_Trsf aTrsf1, aTrsf2, aTrsf3;
+    gp_Ax1 anAx1(gp_Pnt(0.0, 0.0, dz), gp_Dir(1.0, 0.0, 0.0));
     aTrsf1.SetRotation(anAx1, M_PI_2);
-    aTrsf2.SetTranslation(gp_Vec(0.0, 1.5, 0.0));
-    BRepBuilderAPI_Transform aTransform(aTopoWedge2, aTrsf2*aTrsf1);
+    aTrsf2.SetTranslation(gp_Vec(0.0, 5.5, 0.0));
+    
+    BRepBuilderAPI_Transform aTransform1(aTopoWedge2, aTrsf2*aTrsf1);
+    TopoDS_Shape sheet1 = aTransform1.Shape();
 
-    Handle(AIS_Shape) anAisWedge2 = new AIS_Shape(aTransform.Shape());
-    anAisWedge2->SetColor(Quantity_NOC_YELLOWGREEN);
-    myQccView->getContext()->Display(anAisWedge2, Standard_True);
+    gp_Ax1 anAx3(gp_Pnt(6.0, 6.0, 0.0), gp_Dir(0.0, 0.0, 1.0));
+    aTrsf3.SetRotation(anAx3, M_PI_2);
+    BRepBuilderAPI_Transform aTransform2(sheet1, aTrsf3);
+    TopoDS_Shape sheet2 = aTransform2.Shape();
+
+    Handle(AIS_Shape) anAisSheet1 = new AIS_Shape(sheet1);
+    Handle(AIS_Shape) anAisSheet2 = new AIS_Shape(sheet2);
+    anAisSheet1->SetColor(Quantity_NOC_YELLOWGREEN);
+    anAisSheet2->SetColor(Quantity_NOC_YELLOWGREEN);
+    myQccView->getContext()->Display(anAisSheet1, Standard_True);
+    myQccView->getContext()->Display(anAisSheet2, Standard_True);
 }
 
 void Qcc::makeHollow()
