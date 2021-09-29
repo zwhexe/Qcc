@@ -29,7 +29,6 @@ protected:
     void createStatusBar(void);
 
     void makeCylindericalHelix(void);
-    void makeFaceHollow(void);
 
 private slots:
     /* Help */
@@ -43,6 +42,7 @@ private slots:
     void makeTorus(void);
     void makeWedge(void);
     void makeHollow(void);
+    void makeFaceHole(void);
     
     /* Modeling */
     void makeFillet(void);

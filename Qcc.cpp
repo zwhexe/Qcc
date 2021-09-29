@@ -67,12 +67,17 @@ Qcc::Qcc(QWidget *parent)
     createToolBars();
     createStatusBar();
 
+    ui->menuPrimitive->addSeparator();
+
     QAction* hollow = new QAction;
     hollow->setIconText(tr("Hollow"));
-    ui->menuPrimitive->addSeparator();
-    ui->menuPrimitive->addAction(hollow);
-    
+    ui->menuPrimitive->addAction(hollow); 
     connect(hollow, &QAction::triggered, this, &Qcc::makeHollow);
+
+    QAction* facehole = new QAction;
+    facehole->setIconText(tr("Hole"));
+    ui->menuPrimitive->addAction(facehole);
+    connect(facehole, &QAction::triggered, this, &Qcc::makeFaceHole);
 }
 
 Qcc::~Qcc()
@@ -254,19 +259,34 @@ void Qcc::makeTorus()
 
 void Qcc::makeWedge()
 {
-    gp_Ax2 anAxis;
-    anAxis.SetLocation(gp_Pnt(0.0, 5.0, 0.0));
+    Standard_Real dx = 2.0;
+    Standard_Real dy = 5.0;
+    Standard_Real dz = 1.5;
+    Standard_Real xmin = -5.0;
+    Standard_Real zmin = 0.0;
+    Standard_Real xmax = 7.0;
+    Standard_Real zmax = 1.5;
+    Standard_Real ltx = 4.0;
 
-    TopoDS_Shape aTopoWedge1 = BRepPrimAPI_MakeWedge(anAxis, 1.0, 2.0, 3.0, 2.0).Shape();
+    gp_Ax2 anAx2;
+    anAx2.SetLocation(gp_Pnt(12.0, 12.0, 0.0));
+    TopoDS_Shape aTopoWedge1 = BRepPrimAPI_MakeWedge(anAx2, dx, dy, dz, ltx).Shape();
     Handle(AIS_Shape) anAisWedge1 = new AIS_Shape(aTopoWedge1);
+    //anAisWedge1->SetColor(Quantity_NOC_YELLOW);
+    //myQccView->getContext()->Display(anAisWedge1, Standard_True);
 
-    anAxis.SetLocation(gp_Pnt(0.0, 10.0, 0.0));
-    TopoDS_Shape aTopoWedge2 = BRepPrimAPI_MakeWedge(1.0, 2.0, 3.0, -1.0, 0.0, 2.0, 3.0);
-    Handle(AIS_Shape) anAisWedge2 = new AIS_Shape(aTopoWedge2);
+    anAx2.SetLocation(gp_Pnt(5.0, 0.0, 0.0));
+    TopoDS_Shape aTopoWedge2 = BRepPrimAPI_MakeWedge(anAx2, dx, dy, dz, xmin, zmin, xmax, zmax);
+   
+    
+    gp_Trsf aTrsf1, aTrsf2;
+    gp_Ax1 anAx1(gp_Pnt(0.0, 5.0, 1.5), gp_Dir(-1.0, 0.0, 0.0));
+    aTrsf1.SetRotation(anAx1, M_PI_2);
+    aTrsf2.SetTranslation(gp_Vec(0.0, 1.5, 0.0));
+    BRepBuilderAPI_Transform aTransform(aTopoWedge2, aTrsf2*aTrsf1);
 
-    anAisWedge1->SetColor(Quantity_NOC_YELLOW);
+    Handle(AIS_Shape) anAisWedge2 = new AIS_Shape(aTransform.Shape());
     anAisWedge2->SetColor(Quantity_NOC_YELLOWGREEN);
-    myQccView->getContext()->Display(anAisWedge1, Standard_True);
     myQccView->getContext()->Display(anAisWedge2, Standard_True);
 }
 
@@ -481,35 +501,50 @@ void Qcc::makeLoft()
 
 void Qcc::testCut()
 {
-    gp_Ax2 anAxis;
-    anAxis.SetLocation(gp_Pnt(0.0, 90.0, 0.0));
-
-    TopoDS_Shape aTopoBox = BRepPrimAPI_MakeBox(anAxis, 3.0, 4.0, 5.0).Shape();
-    TopoDS_Shape aTopoSphere = BRepPrimAPI_MakeSphere(anAxis, 2.5).Shape();
-    TopoDS_Shape aCuttedShape1 = BRepAlgoAPI_Cut(aTopoBox, aTopoSphere);
-    TopoDS_Shape aCuttedShape2 = BRepAlgoAPI_Cut(aTopoSphere, aTopoBox);
+    Standard_Real gap = 2.0;
+    Standard_Real radius = 1.0;
+    Standard_Real width = 12.0;
+    Standard_Real height = 3.0;
+    
+    gp_Ax2 anAx2;
+    anAx2.SetLocation(gp_Pnt(gap, gap, 0.0));
+    TopoDS_Shape aTopoCylinder = BRepPrimAPI_MakeCylinder(anAx2, radius, height*2.0).Shape();
+   
+    anAx2.SetLocation(gp_Pnt(0.0, 0.0, 0.0));
+    TopoDS_Shape aTopoBox = BRepPrimAPI_MakeBox(anAx2, width, width, height).Shape();
+    
+    Handle(AIS_Shape) anAisCylinder = new AIS_Shape(aTopoCylinder);
+    Handle(AIS_Shape) anAisBox = new AIS_Shape(aTopoBox);
+    anAisCylinder->SetColor(Quantity_NOC_BEIGE);
+    anAisBox->SetColor(Quantity_NOC_BEET);
+    myQccView->getContext()->Display(anAisCylinder, Standard_True);
+    myQccView->getContext()->Display(anAisBox, Standard_True);
 
     gp_Trsf aTrsf;
-    aTrsf.SetTranslation(gp_Vec(8.0, 0.0, 0.0));
-    BRepBuilderAPI_Transform aTransform1(aCuttedShape1, aTrsf);
+    TopoDS_Shape aTopoHole;
+    /* Box cut Cylinder at (gap, gap, 0) */
+    aTopoHole = BRepAlgoAPI_Cut(aTopoBox, aTopoCylinder);
 
-    aTrsf.SetTranslation(gp_Vec(16.0, 0.0, 0.0));
-    BRepBuilderAPI_Transform aTransform2(aCuttedShape2, aTrsf);
+    /* Box cut Cylinder at (width - gap, gap, 0)*/
+    aTrsf.SetTranslation(gp_Vec(width - 2 * gap, 0.0, 0.0));
+    BRepBuilderAPI_Transform aBRepTrsf1(aTopoCylinder, aTrsf);
+    aTopoHole = BRepAlgoAPI_Cut(aTopoHole, aBRepTrsf1.Shape());
 
-    Handle(AIS_Shape) anAisBox = new AIS_Shape(aTopoBox);
-    Handle(AIS_Shape) anAisSphere = new AIS_Shape(aTopoSphere);
-    Handle(AIS_Shape) anAisCuttedShape1 = new AIS_Shape(aTransform1.Shape());
-    Handle(AIS_Shape) anAisCuttedShape2 = new AIS_Shape(aTransform2.Shape());
+    /* Box cut Cylinder at (width - gap, width - gap, 0) */
+    aTrsf.SetTranslation(gp_Vec(width - 2 * gap, width - 2 * gap, 0.0));
+    BRepBuilderAPI_Transform aBRepTrsf2(aTopoCylinder, aTrsf);
+    aTopoHole = BRepAlgoAPI_Cut(aTopoHole, aBRepTrsf2.Shape());
 
-    anAisBox->SetColor(Quantity_NOC_SPRINGGREEN);
-    anAisSphere->SetColor(Quantity_NOC_STEELBLUE);
-    anAisCuttedShape1->SetColor(Quantity_NOC_TAN);
-    anAisCuttedShape2->SetColor(Quantity_NOC_SALMON);
+    /* Box cut Cylinder at (gap, width - gap, 0) */
+    aTrsf.SetTranslation(gp_Vec(0.0, width - 2 * gap, 0.0));
+    BRepBuilderAPI_Transform aBRepTrsf3(aTopoCylinder, aTrsf);
+    aTopoHole = BRepAlgoAPI_Cut(aTopoHole, aBRepTrsf3.Shape());
 
-    myQccView->getContext()->Display(anAisBox, Standard_True);
-    myQccView->getContext()->Display(anAisSphere, Standard_True);
-    myQccView->getContext()->Display(anAisCuttedShape1, Standard_True);
-    myQccView->getContext()->Display(anAisCuttedShape2, Standard_True);
+    aTrsf.SetTranslation(gp_Vec(width * 1.5, 0.0, 0.0));
+    BRepBuilderAPI_Transform aBRepTrsfHole(aTopoHole, aTrsf);
+    Handle(AIS_Shape) anAisHole = new AIS_Shape(aBRepTrsfHole.Shape());
+    anAisHole->SetColor(Quantity_NOC_CHOCOLATE);
+    myQccView->getContext()->Display(anAisHole, Standard_True);
 }
 
 void Qcc::testHelix()
@@ -571,46 +606,69 @@ void Qcc::makeCylindericalHelix()
     //}
 }
 
-void Qcc::makeFaceHollow()
+void Qcc::makeFaceHole()
 {
+    Standard_Real gap = 2.0;
+    Standard_Real radius = 1.0;
+    Standard_Real width = 12.0;
+    Standard_Real height = 1.5;
+
     gp_Pln aPlane;
 
-    gp_Circ aCircle1(gp::XOY(), 1.0);
-    gp_Circ aCircle2(gp::XOY(), 1.0);
-    gp_Circ aCircle3(gp::XOY(), 1.0);
+    gp_Circ aCircle1(gp::XOY(), radius);
+    gp_Circ aCircle2(gp::XOY(), radius);
+    gp_Circ aCircle3(gp::XOY(), radius);
+    gp_Circ aCircle4(gp::XOY(), radius);
 
-    aCircle1.SetLocation(gp_Pnt(3.0, 3.0, 0.0));
-    aCircle2.SetLocation(gp_Pnt(7.0, 3.0, 0.0));
-    aCircle3.SetLocation(gp_Pnt(3.0, 7.0, 0.0));
+    aCircle1.SetLocation(gp_Pnt(gap, gap, 0.0));
+    aCircle2.SetLocation(gp_Pnt(width - gap, gap, 0.0));
+    aCircle3.SetLocation(gp_Pnt(gap, width - gap, 0.0));
+    aCircle4.SetLocation(gp_Pnt(width - gap, width - gap, 0.0));
 
     BRepBuilderAPI_MakeEdge anEdgeMaker1(aCircle1);
     BRepBuilderAPI_MakeEdge anEdgeMaker2(aCircle2);
     BRepBuilderAPI_MakeEdge anEdgeMaker3(aCircle3);
+    BRepBuilderAPI_MakeEdge anEdgeMaker4(aCircle4);
 
     BRepBuilderAPI_MakeWire aWireMaker1(anEdgeMaker1.Edge());
     BRepBuilderAPI_MakeWire aWireMaker2(anEdgeMaker2.Edge());
     BRepBuilderAPI_MakeWire aWireMaker3(anEdgeMaker3.Edge());
+    BRepBuilderAPI_MakeWire aWireMaker4(anEdgeMaker4.Edge());
 
-    BRepBuilderAPI_MakeFace aFaceMaker(aPlane, 0.0, 10.0, 0.0, 10.0);
+    BRepBuilderAPI_MakeFace aFaceMaker(aPlane, 0.0, width, 0.0, width);
 
-    if (aWireMaker1.IsDone())
-    {
-        aFaceMaker.Add(aWireMaker1.Wire());
+    if (aWireMaker1.IsDone()) {
+        TopoDS_Wire aWire1 = aWireMaker1.Wire();
+        aWire1.Reverse();
+        aFaceMaker.Add(aWire1);
     }
 
-    if (aWireMaker2.IsDone())
-    {
-        aFaceMaker.Add(aWireMaker2.Wire());
+    if (aWireMaker2.IsDone()) {
+        TopoDS_Wire aWire2 = aWireMaker2.Wire();
+        aWire2.Reverse();
+        aFaceMaker.Add(aWire2);
     }
 
-    if (aWireMaker3.IsDone())
-    {
-        aFaceMaker.Add(aWireMaker3.Wire());
+    if (aWireMaker3.IsDone()) {
+        TopoDS_Wire aWire3 = aWireMaker3.Wire();
+        aWire3.Reverse();
+        aFaceMaker.Add(aWire3);
     }
 
-    if (aFaceMaker.IsDone())
-    {
-        BRepTools::Write(aFaceMaker.Shape(), "d:/face.brep");
+    if (aWireMaker4.IsDone()) {
+        TopoDS_Wire aWire4 = aWireMaker4.Wire();
+        aWire4.Reverse();
+        aFaceMaker.Add(aWire4);
     }
 
+    if (aFaceMaker.IsDone()) {
+        TopoDS_Shape aTopoFace = aFaceMaker.Shape();
+        // BRepTools::Write(aTopoFace, "D:/face.brep");
+        Handle(AIS_Shape) anAisFace = new AIS_Shape(aTopoFace);
+        myQccView->getContext()->Display(anAisFace, Standard_True);
+    }
+
+    TopoDS_Shape aTopoHole = BRepPrimAPI_MakePrism(aFaceMaker.Face(), gp_Vec(0.0, 0.0, height));
+    Handle(AIS_Shape) anAisHole = new AIS_Shape(aTopoHole);
+    myQccView->getContext()->Display(anAisHole, Standard_True);
 }
