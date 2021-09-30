@@ -278,14 +278,16 @@ void Qcc::makeWedge()
     anAx2.SetLocation(gp_Pnt(0.0, 0.0, 0.0));
     TopoDS_Shape aTopoWedge2 = BRepPrimAPI_MakeWedge(anAx2, dx, dy, dz, xmin, zmin, xmax, zmax);
    
-    gp_Trsf aTrsf1, aTrsf2, aTrsf3;
+    gp_Trsf aTrsf1, aTrsf2; // rotation and translation method
     gp_Ax1 anAx1(gp_Pnt(0.0, 0.0, dz), gp_Dir(1.0, 0.0, 0.0));
     aTrsf1.SetRotation(anAx1, M_PI_2);
     aTrsf2.SetTranslation(gp_Vec(0.0, 5.5, 0.0));
-    
+
+    /* overloaded '*' that transformation matrix to multiply */
     BRepBuilderAPI_Transform aTransform1(aTopoWedge2, aTrsf2*aTrsf1);
     TopoDS_Shape sheet1 = aTransform1.Shape();
 
+    gp_Trsf aTrsf3;
     gp_Ax1 anAx3(gp_Pnt(6.0, 6.0, 0.0), gp_Dir(0.0, 0.0, 1.0));
     aTrsf3.SetRotation(anAx3, M_PI_2);
     BRepBuilderAPI_Transform aTransform2(sheet1, aTrsf3);
@@ -302,17 +304,17 @@ void Qcc::makeWedge()
 void Qcc::makeHollow()
 {
     gp_Ax1 anAxis;
-    anAxis.SetLocation(gp_Pnt(0.0, 70.0, 0.0));
+    anAxis.SetLocation(gp_Pnt(6.0, 6.0, 1.5));
     Standard_Real ra = 1.0;
-    Standard_Real rb = 3.0;
+    Standard_Real rb = 2.0;
 
     // revol a vertex result is a circle edge.
-    TopoDS_Vertex aVertex = BRepBuilderAPI_MakeVertex(gp_Pnt(ra, 70.0, 0.0));
+    TopoDS_Vertex aVertex = BRepBuilderAPI_MakeVertex(gp_Pnt(ra+6.0, 6.0, 1.5));
     TopoDS_Shape aRevolVertex = BRepPrimAPI_MakeRevol(aVertex, anAxis);
     Handle(AIS_Shape) aAisRevolVertex = new AIS_Shape(aRevolVertex);
 
-    // revol a vertex with M_PI result in halg circle edge
-    TopoDS_Vertex bVertex = BRepBuilderAPI_MakeVertex(gp_Pnt(rb, 70.0, 0.0));
+    // revol a vertex with M_PI result in half circle edge
+    TopoDS_Vertex bVertex = BRepBuilderAPI_MakeVertex(gp_Pnt(rb+6.0, 6.0, 1.5));
     TopoDS_Shape bRevolVertex = BRepPrimAPI_MakeRevol(bVertex, anAxis, M_PI);
     Handle(AIS_Shape) bAisRevolVertex = new AIS_Shape(bRevolVertex);
 
@@ -322,7 +324,7 @@ void Qcc::makeHollow()
     myQccView->getContext()->Display(bAisRevolVertex, Standard_True);
 
     // prism a vertex result is an straight edge
-    TopoDS_Vertex cVertex = BRepBuilderAPI_MakeVertex(gp_Pnt(0.0, 70.0+ra, 0.0));
+    TopoDS_Vertex cVertex = BRepBuilderAPI_MakeVertex(gp_Pnt(6.0, 6.0+ra, 1.5));
     TopoDS_Shape aPrismVertex = BRepPrimAPI_MakePrism(cVertex, gp_Vec(0.0, rb - ra, 0.0));
     Handle(AIS_Shape) anAisPrismVertex = new AIS_Shape(aPrismVertex);
     
@@ -330,10 +332,10 @@ void Qcc::makeHollow()
     myQccView->getContext()->Display(anAisPrismVertex, Standard_True);
 
     // revol an edge result is a circle face and extrude it to a solid
-    TopoDS_Edge anRadius = BRepBuilderAPI_MakeEdge(gp_Pnt(ra, 70.0, 0.0), gp_Pnt(rb, 70.0, 0.0));
+    TopoDS_Edge anRadius = BRepBuilderAPI_MakeEdge(gp_Pnt(ra + 6.0, 6.0, 1.5), gp_Pnt(rb + 6.0, 6.0, 1.5));
     TopoDS_Shape revolRadius = BRepPrimAPI_MakeRevol(anRadius, anAxis);
     TopoDS_Face revolFace = TopoDS::Face(revolRadius);
-    TopoDS_Shape extrudeSolid = BRepPrimAPI_MakePrism(revolFace, gp_Vec(0.0, 0.0, 5.0));
+    TopoDS_Shape extrudeSolid = BRepPrimAPI_MakePrism(revolFace, gp_Vec(0.0, 0.0, 8.0));
 
     Handle(AIS_Shape) anAisRadius = new AIS_Shape(revolRadius);
     Handle(AIS_Shape) anAisSolid = new AIS_Shape(extrudeSolid);
