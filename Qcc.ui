@@ -20,7 +20,7 @@
      <x>0</x>
      <y>0</y>
      <width>750</width>
-     <height>23</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -72,6 +72,7 @@
      <string>Help</string>
     </property>
     <addaction name="actionAbout"/>
+    <addaction name="actionTest"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuView"/>
@@ -196,6 +197,11 @@
   <action name="actionWedge">
    <property name="text">
     <string>Wedge</string>
+   </property>
+  </action>
+  <action name="actionTest">
+   <property name="text">
+    <string>Test</string>
    </property>
   </action>
  </widget>

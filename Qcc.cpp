@@ -68,12 +68,14 @@ Qcc::Qcc(QWidget *parent)
     createStatusBar();
 
     ui->menuPrimitive->addSeparator();
-
+    
+    /* make a cylinder with hollow */
     QAction* hollow = new QAction;
     hollow->setIconText(tr("Hollow"));
     ui->menuPrimitive->addAction(hollow); 
     connect(hollow, &QAction::triggered, this, &Qcc::makeHollow);
 
+    /* make a box with hole */
     QAction* facehole = new QAction;
     facehole->setIconText(tr("Hole"));
     ui->menuPrimitive->addAction(facehole);
@@ -103,7 +105,6 @@ void Qcc::createActions(void)
     connect(ui->actionSphere, SIGNAL(triggered()), this, SLOT(makeSphere()));
     connect(ui->actionCylinder, SIGNAL(triggered()), this, SLOT(makeCylinder()));
     connect(ui->actionTorus, SIGNAL(triggered()), this, SLOT(makeTorus()));
-    // connect(ui->actionWedge, SIGNAL(triggered()), this, SLOT(makeWedge));
     connect(ui->actionWedge, &QAction::triggered, this, &Qcc::makeWedge);
     /* Modeling */
     connect(ui->actionFillet, SIGNAL(triggered()), this, SLOT(makeFillet()));
@@ -115,7 +116,8 @@ void Qcc::createActions(void)
     connect(ui->actionCut, &QAction::triggered, this, &Qcc::testCut);
     connect(ui->actionHelix, &QAction::triggered, this, &Qcc::testHelix);
     /* About */
-    connect(ui->actionAbout, SIGNAL(triggered()), this, SLOT(about()));
+    connect(ui->actionAbout, &QAction::triggered, this, &Qcc::about);
+    connect(ui->actionTest, &QAction::triggered, this, &Qcc::test);
 }
 
 void Qcc::createMenus(void)
@@ -158,7 +160,7 @@ void Qcc::createToolBars(void)
 
     aToolBar = addToolBar(tr("&Help"));
     aToolBar->addAction(ui->actionAbout);
-
+    aToolBar->addAction(ui->actionTest);
 }
 
 void Qcc::createStatusBar()
@@ -176,6 +178,42 @@ void Qcc::about()
     QMessageBox::about(this, tr("About Qcc"),
         tr("<h2>Qcc 1.0</h2>"
             "<p>Qcc is a demo application about Qt and OpenCascade</p>"));
+}
+
+void Qcc::test()
+{
+    gp_Pnt p1(0.0, 0.0, 0.0);
+    gp_Pnt p2(10., 0.0, 0.0);
+    gp_Pnt p3(10., 12., 0.0);
+    gp_Pnt p4(4., 12., 0.0);
+    gp_Pnt p5(0.0, 2., 0.0);
+    TopoDS_Edge edge1 = BRepBuilderAPI_MakeEdge(p1, p2);
+    TopoDS_Edge edge2 = BRepBuilderAPI_MakeEdge(p2, p3);
+    TopoDS_Edge edge3 = BRepBuilderAPI_MakeEdge(p3, p4);
+    TopoDS_Edge edge4 = BRepBuilderAPI_MakeEdge(p4, p5);
+    TopoDS_Edge edge5 = BRepBuilderAPI_MakeEdge(p5, p1);
+
+    BRepBuilderAPI_MakeWire brepWire;
+    brepWire.Add(edge1);
+    brepWire.Add(edge2);
+    brepWire.Add(edge3);
+    brepWire.Add(edge4);
+    brepWire.Add(edge5);
+
+    BRepBuilderAPI_MakeFace brepFace(brepWire.Wire());
+    BRepPrimAPI_MakePrism brepPrism(brepFace.Face(), gp_Vec(0.0, 0.0, 6.0));
+    TopoDS_Shape topoPrism = brepPrism.Shape();
+
+    gp_Ax2 anAx2(gp_Pnt(5.0, 0.0, 3.0), gp_Dir(0.0, 1.0, 0.0));
+    gp_Circ aCirc(anAx2, 3.1);
+    BRepBuilderAPI_MakeEdge mkEdge(aCirc);
+    BRepBuilderAPI_MakeWire mkWire(mkEdge.Edge());
+    BRepBuilderAPI_MakeFace mkFace(mkWire.Wire());
+    BRepPrimAPI_MakePrism mkCylinder(mkFace.Face(), gp_Vec(0.0, 12.0, 0.0));
+
+    BRepAlgoAPI_Cut brepCut(topoPrism, mkCylinder.Shape());
+    Handle(AIS_Shape) anWire = new AIS_Shape(brepCut.Shape());
+    myQccView->getContext()->Display(anWire, Standard_True);
 }
 
 void Qcc::makeBox()
@@ -289,7 +327,7 @@ void Qcc::makeWedge()
     BRepBuilderAPI_Transform aTransform1(aTopoWedge2, aTrsf2*aTrsf1);
     TopoDS_Shape sheet1 = aTransform1.Shape();
 
-    gp_Trsf aTrsf3; // rotation first wedge
+    gp_Trsf aTrsf3; // rotation sheet1 to get sheet2
     gp_Ax1 anAx3(gp_Pnt(6.0, 6.0, 0.0), gp_Dir(0.0, 0.0, 1.0));
     aTrsf3.SetRotation(anAx3, M_PI_2);
     BRepBuilderAPI_Transform aTransform2(sheet1, aTrsf3);
@@ -591,33 +629,33 @@ void Qcc::makeCylindericalHelix()
     myQccView->getContext()->Display(anAisHelixCurve, Standard_True);
     myQccView->getContext()->Display(anAisHelixEdge, Standard_True);
 
-    //// sweep a circle profile along the helix curve.
-    //// there is no curve3d in the pcurve edge, so approx one.
-    //BRepLib::BuildCurve3d(aHelixEdge);
+    // sweep a circle profile along the helix curve.
+    // there is no curve3d in the pcurve edge, so approx one.
+    BRepLib::BuildCurve3d(aHelixEdge);
 
-    //gp_Ax2 anAxis;
-    //anAxis.SetDirection(gp_Dir(0.0, 4.0, 1.0));
-    //anAxis.SetLocation(gp_Pnt(aRadius, 0.0, 0.0));
+    gp_Ax2 anAxis;
+    anAxis.SetDirection(gp_Dir(0.0, 4.0, 1.0));
+    anAxis.SetLocation(gp_Pnt(aRadius, 0.0, 0.0));
 
-    //gp_Circ aProfileCircle(anAxis, 0.3);
+    gp_Circ aProfileCircle(anAxis, 0.3);
 
-    //TopoDS_Edge aProfileEdge = BRepBuilderAPI_MakeEdge(aProfileCircle).Edge();
-    //TopoDS_Wire aProfileWire = BRepBuilderAPI_MakeWire(aProfileEdge).Wire();
-    //TopoDS_Face aProfileFace = BRepBuilderAPI_MakeFace(aProfileWire).Face();
+    TopoDS_Edge aProfileEdge = BRepBuilderAPI_MakeEdge(aProfileCircle).Edge();
+    TopoDS_Wire aProfileWire = BRepBuilderAPI_MakeWire(aProfileEdge).Wire();
+    TopoDS_Face aProfileFace = BRepBuilderAPI_MakeFace(aProfileWire).Face();
 
-    //TopoDS_Wire aHelixWire = BRepBuilderAPI_MakeWire(aHelixEdge).Wire();
+    TopoDS_Wire aHelixWire = BRepBuilderAPI_MakeWire(aHelixEdge).Wire();
 
-    //BRepOffsetAPI_MakePipe aPipeMaker(aHelixWire, aProfileFace);
+    BRepOffsetAPI_MakePipe aPipeMaker(aHelixWire, aProfileFace);
 
-    //if (aPipeMaker.IsDone())
-    //{
-    //    aTrsf.SetTranslation(gp_Vec(8.0, 120.0, 0.0));
-    //    BRepBuilderAPI_Transform aPipeTransform(aPipeMaker.Shape(), aTrsf);
+    if (aPipeMaker.IsDone())
+    {
+        aTrsf.SetTranslation(gp_Vec(8.0, 120.0, 0.0));
+        BRepBuilderAPI_Transform aPipeTransform(aPipeMaker.Shape(), aTrsf);
 
-    //    Handle(AIS_Shape) anAisPipe = new AIS_Shape(aPipeTransform.Shape());
-    //    anAisPipe->SetColor(Quantity_NOC_CORAL);
-    //    myQccView->getContext()->Display(anAisPipe, Standard_True);
-    //}
+        Handle(AIS_Shape) anAisPipe = new AIS_Shape(aPipeTransform.Shape());
+        anAisPipe->SetColor(Quantity_NOC_CORAL);
+        myQccView->getContext()->Display(anAisPipe, Standard_True);
+    }
 }
 
 void Qcc::makeFaceHole()

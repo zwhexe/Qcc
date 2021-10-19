@@ -2,6 +2,7 @@
 
 #include <AIS_InteractiveContext.hxx>
 #include <QMainWindow>
+#include <QDebug>
 #include "ui_Qcc.h"
 
 namespace Ui {
@@ -33,6 +34,7 @@ protected:
 private slots:
     /* Help */
     void about(void);
+    void test(void);
 
     /* Primitive */
     void makeBox(void);
