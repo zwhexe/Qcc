@@ -122,7 +122,7 @@ void Qcc::createActions(void)
 
 void Qcc::createMenus(void)
 {
-/* MenuBar has been added by Qcc.ui */
+    
 }
 
 void Qcc::createToolBars(void)

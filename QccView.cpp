@@ -15,7 +15,7 @@ QccView::QccView(QWidget* parent)
 	myYmin(0),
 	myXmax(0),
 	myYmax(0),
-	myCurrentMode(CurAction3d_DynamicRotation),
+	myCurrentMode(CurrentAction3d::CurAction3d_DynamicRotation),
 	myDegenerateModeIsOn(Standard_True),
 	myRectBand(NULL)
 {
@@ -93,17 +93,17 @@ void QccView::resizeEvent(QResizeEvent* /*theEvent*/)
 
 void QccView::zoom(void)
 {
-	myCurrentMode = CurAction3d_DynamicZooming;
+	myCurrentMode = CurrentAction3d::CurAction3d_DynamicZooming;
 }
 
 void QccView::pan(void)
 {
-	myCurrentMode = CurAction3d_DynamicPanning;
+	myCurrentMode = CurrentAction3d::CurAction3d_DynamicPanning;
 }
 
 void QccView::rotate(void)
 {
-	myCurrentMode = CurAction3d_DynamicRotation;
+	myCurrentMode = CurrentAction3d::CurAction3d_DynamicRotation;
 }
 
 void QccView::reset(void)
@@ -160,6 +160,23 @@ void QccView::wheelEvent(QWheelEvent* theEvent)
 	onMouseWheel(theEvent->buttons(), theEvent->delta(), theEvent->pos());
 }
 
+void QccView::keyPressEvent(QKeyEvent* theEvent)
+{
+	if (theEvent->modifiers() == Qt::ShiftModifier)
+	{
+		myCurrentMode = CurrentAction3d::CurAction3d_DynamicPanning;
+	}
+	else if (theEvent->modifiers() == Qt::ControlModifier)
+	{
+		myCurrentMode = CurrentAction3d::CurAction3d_DynamicZooming;
+	}
+}
+
+void QccView::keyReleaseEvent(QKeyEvent* theEvent)
+{
+	myCurrentMode = CurrentAction3d::CurAction3d_DynamicRotation;
+}
+
 void QccView::onLButtonDown(const int /*theFlags*/, const QPoint thePoint)
 {
 	/* save the current mouse coordinate in min */
@@ -171,7 +188,15 @@ void QccView::onLButtonDown(const int /*theFlags*/, const QPoint thePoint)
 
 void QccView::onRButtonDown(const int /*theFlags*/, const QPoint /*thePoint*/)
 {
-
+	if (myContext->HasDetected())
+	{
+		QMenu menu;
+		QAction* actionVolume = menu.addAction("Select Solid");
+		QAction* actionFace = menu.addAction("Select Shell");
+		QAction* actionEdge = menu.addAction("Select Edge");
+		QAction* actionVertex = menu.addAction("Select Vertex");
+		menu.exec(QCursor::pos());
+	}
 }
 
 void QccView::onMButtonDown(const int /*theFlags*/, const QPoint thePoint)
@@ -182,10 +207,8 @@ void QccView::onMButtonDown(const int /*theFlags*/, const QPoint thePoint)
 	myXmax = thePoint.x();
 	myYmax = thePoint.y();
 
-	if (myCurrentMode == CurAction3d_DynamicRotation)
-	{
-		myView->StartRotation(thePoint.x(), thePoint.y());
-	}
+	myCurrentMode = CurrentAction3d::CurAction3d_DynamicRotation;
+	myView->StartRotation(thePoint.x(), thePoint.y());
 }
 
 void QccView::onLButtonUp(const int theFlags, const QPoint thePoint)
@@ -227,9 +250,22 @@ void QccView::onMouseMove(const int theFlags, const QPoint thePoint)
 {
 	/* Drag the rubber band */
 	if (theFlags & Qt::LeftButton)
-	{
-		drawRubberBand(myXmin, myYmin, thePoint.x(), thePoint.y());
-		dragEvent(thePoint.x(), thePoint.y());
+	{	
+		if (myCurrentMode == CurrentAction3d::CurAction3d_DynamicPanning)
+		{
+			myView->Pan(thePoint.x() - myXmax, myYmax - thePoint.y());
+			myXmax = thePoint.x();
+			myYmax = thePoint.y();
+		}
+		else if (myCurrentMode == CurrentAction3d::CurAction3d_DynamicZooming)
+		{
+			myView->Zoom(myXmin, myYmin, thePoint.x(), thePoint.y());
+		}
+		else
+		{
+			drawRubberBand(myXmin, myYmin, thePoint.x(), thePoint.y());
+			dragEvent(thePoint.x(), thePoint.y());
+		}
 	}
 
 	/* Ctrl for multi selection */
@@ -245,23 +281,8 @@ void QccView::onMouseMove(const int theFlags, const QPoint thePoint)
 	/* Middle button */
 	if (theFlags & Qt::MidButton)
 	{
-		switch (myCurrentMode)
-		{
-		case CurAction3d_DynamicRotation:
+		if (myCurrentMode == CurrentAction3d::CurAction3d_DynamicRotation)
 			myView->Rotation(thePoint.x(), thePoint.y());
-			break;
-		case CurAction3d_DynamicZooming:
-				myView->Zoom(myXmin, myYmin, thePoint.x(), thePoint.y());
-				break;
-		case CurAction3d_DynamicPanning:
-			myView->Pan(thePoint.x() - myXmax, myYmax - thePoint.y());
-			myXmax = thePoint.x();
-			myYmax = thePoint.y();
-			break;
-
-		default:
-			break;
-		}
 	}
 }
 

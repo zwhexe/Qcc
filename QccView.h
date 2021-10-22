@@ -23,7 +23,7 @@ class QccView : public QGLWidget
 
 public:
     /* mouse actions */
-    enum CurrentAction3d
+    enum class CurrentAction3d
     {
         CurAction3d_Nothing,
         CurAction3d_DynamicZooming,
@@ -59,6 +59,10 @@ protected:
     virtual void mouseReleaseEvent(QMouseEvent* theEvent);
     virtual void mouseMoveEvent(QMouseEvent* theEvent);
     virtual void wheelEvent(QWheelEvent* theEvent);
+
+    /* Key events */
+    virtual void keyPressEvent(QKeyEvent* theEvent);
+    virtual void keyReleaseEvent(QKeyEvent* theEvent);
 
     /* Button events */
     virtual void onLButtonDown(const int theFlags, const QPoint thePoint);
