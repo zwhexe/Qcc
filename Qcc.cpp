@@ -1,59 +1,11 @@
 #include "Qcc.h"
 #include "QccView.h"
+#include "ShapeHandle.h"
 
 #include <QToolBar>
 #include <QTreeView>
 #include <QMessageBox>
 #include <QDockWidget>
-
-#include <gp_Circ.hxx>
-#include <gp_Elips.hxx>
-#include <gp_Pln.hxx>
-#include <gp_Pnt.hxx>
-
-#include <gp_Lin2d.hxx>
-
-#include <Geom_ConicalSurface.hxx>
-#include <Geom_ToroidalSurface.hxx>
-#include <Geom_CylindricalSurface.hxx>
-
-#include <GCE2d_MakeSegment.hxx>
-
-#include <TopoDS.hxx>
-#include <TopExp.hxx>
-#include <TopExp_Explorer.hxx>
-#include <TColgp_Array1OfPnt2d.hxx>
-
-#include <BRepLib.hxx>
-
-#include <BRepBuilderAPI_MakeVertex.hxx>
-#include <BRepBuilderAPI_MakeEdge.hxx>
-#include <BRepBuilderAPI_MakeWire.hxx>
-#include <BRepBuilderAPI_MakeFace.hxx>
-#include <BRepBuilderAPI_Transform.hxx>
-#include <BRepBuilderAPI_MakePolygon.hxx>
-
-#include <BRepPrimAPI_MakeBox.hxx>
-#include <BRepPrimAPI_MakeCone.hxx>
-#include <BRepPrimAPI_MakeSphere.hxx>
-#include <BRepPrimAPI_MakeCylinder.hxx>
-#include <BRepPrimAPI_MakeTorus.hxx>
-#include <BRepPrimAPI_MakePrism.hxx>
-#include <BRepPrimAPI_MakeRevol.hxx>
-#include <BRepPrimAPI_MakeWedge.hxx>
-
-#include <BRepFilletAPI_MakeFillet.hxx>
-#include <BRepFilletAPI_MakeChamfer.hxx>
-
-#include <BRepOffsetAPI_MakePipe.hxx>
-#include <BRepOffsetAPI_ThruSections.hxx>
-
-#include <BRepAlgoAPI_Cut.hxx>
-#include <BRepAlgoAPI_Fuse.hxx>
-#include <BRepAlgoAPI_Common.hxx>
-#include <BRepTools.hxx>
-
-#include <AIS_Shape.hxx>
 
 Qcc::Qcc(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::QccClass)
@@ -118,6 +70,9 @@ void Qcc::createActions(void)
     /* About */
     connect(ui->actionAbout, &QAction::triggered, this, &Qcc::about);
     connect(ui->actionTest, &QAction::triggered, this, &Qcc::test);
+    
+    /* myQccView */
+    connect(myQccView, &QccView::showObbBox, this, &Qcc::test);
 }
 
 void Qcc::createMenus(void)
@@ -182,38 +137,18 @@ void Qcc::about()
 
 void Qcc::test()
 {
-    gp_Pnt p1(0.0, 0.0, 0.0);
-    gp_Pnt p2(10., 0.0, 0.0);
-    gp_Pnt p3(10., 12., 0.0);
-    gp_Pnt p4(4., 12., 0.0);
-    gp_Pnt p5(0.0, 2., 0.0);
-    TopoDS_Edge edge1 = BRepBuilderAPI_MakeEdge(p1, p2);
-    TopoDS_Edge edge2 = BRepBuilderAPI_MakeEdge(p2, p3);
-    TopoDS_Edge edge3 = BRepBuilderAPI_MakeEdge(p3, p4);
-    TopoDS_Edge edge4 = BRepBuilderAPI_MakeEdge(p4, p5);
-    TopoDS_Edge edge5 = BRepBuilderAPI_MakeEdge(p5, p1);
+    TopoDS_Shape topoShp = myQccView->getContext()->DetectedShape();
+    if (topoShp.IsNull())
+        return;
 
-    BRepBuilderAPI_MakeWire brepWire;
-    brepWire.Add(edge1);
-    brepWire.Add(edge2);
-    brepWire.Add(edge3);
-    brepWire.Add(edge4);
-    brepWire.Add(edge5);
+    Bnd_OBB bndObb;
+    BRepBndLib ret;
+    ret.AddOBB(topoShp, bndObb, true, true, false);
 
-    BRepBuilderAPI_MakeFace brepFace(brepWire.Wire());
-    BRepPrimAPI_MakePrism brepPrism(brepFace.Face(), gp_Vec(0.0, 0.0, 6.0));
-    TopoDS_Shape topoPrism = brepPrism.Shape();
-
-    gp_Ax2 anAx2(gp_Pnt(5.0, 0.0, 3.0), gp_Dir(0.0, 1.0, 0.0));
-    gp_Circ aCirc(anAx2, 3.1);
-    BRepBuilderAPI_MakeEdge mkEdge(aCirc);
-    BRepBuilderAPI_MakeWire mkWire(mkEdge.Edge());
-    BRepBuilderAPI_MakeFace mkFace(mkWire.Wire());
-    BRepPrimAPI_MakePrism mkCylinder(mkFace.Face(), gp_Vec(0.0, 12.0, 0.0));
-
-    BRepAlgoAPI_Cut brepCut(topoPrism, mkCylinder.Shape());
-    Handle(AIS_Shape) anWire = new AIS_Shape(brepCut.Shape());
-    myQccView->getContext()->Display(anWire, Standard_True);
+    TopoDS_Shape obbShape = getBndShape(bndObb);
+    Handle(AIS_Shape) abox = new AIS_Shape(obbShape);
+    abox->SetTransparency();
+    myQccView->getContext()->Display(abox, Standard_True);
 }
 
 void Qcc::makeBox()
