@@ -71,8 +71,8 @@ void Qcc::createActions(void)
     connect(ui->actionAbout, &QAction::triggered, this, &Qcc::about);
     connect(ui->actionTest, &QAction::triggered, this, &Qcc::test);
     
-    /* myQccView */
-    connect(myQccView, &QccView::showObbBox, this, &Qcc::test);
+    /* myQccView signal to do "test" */
+    connect(myQccView, &QccView::meshSelection, this, &Qcc::test);
 }
 
 void Qcc::createMenus(void)
@@ -137,18 +137,10 @@ void Qcc::about()
 
 void Qcc::test()
 {
-    TopoDS_Shape topoShp = myQccView->getContext()->DetectedShape();
-    if (topoShp.IsNull())
-        return;
-
-    Bnd_OBB bndObb;
-    BRepBndLib ret;
-    ret.AddOBB(topoShp, bndObb, true, true, false);
-
-    TopoDS_Shape obbShape = getBndShape(bndObb);
-    Handle(AIS_Shape) abox = new AIS_Shape(obbShape);
-    abox->SetTransparency();
-    myQccView->getContext()->Display(abox, Standard_True);
+    TopoDS_Shape topoShp;
+    if (myQccView->getContext()->HasDetectedShape())
+        topoShp = myQccView->getContext()->DetectedShape();
+    
 }
 
 void Qcc::makeBox()

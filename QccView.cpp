@@ -195,8 +195,8 @@ void QccView::onRButtonDown(const int /*theFlags*/, const QPoint /*thePoint*/)
 		QAction* actionFace = menu.addAction("Select Shell");
 		QAction* actionEdge = menu.addAction("Select Edge");
 		QAction* actionVertex = menu.addAction("Select Vertex");
-		QAction* actionOBB = menu.addAction("Show BndObb");
-		connect(actionOBB, &QAction::triggered, this, &QccView::showObbBox);
+		QAction* actionOBB = menu.addAction("Mesh Selection");
+		connect(actionOBB, &QAction::triggered, this, &QccView::meshSelection);
 		menu.exec(QCursor::pos());
 	}
 }

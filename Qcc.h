@@ -1,6 +1,7 @@
 #pragma once
 
 #include <AIS_InteractiveContext.hxx>
+#include <AIS_Shape.hxx>
 #include <QMainWindow>
 #include <QDebug>
 
@@ -51,10 +52,11 @@
 #include <BRepAlgoAPI_Common.hxx>
 #include <BRepTools.hxx>
 
-#include <AIS_Shape.hxx>
-#include <BRepBndLib.hxx>
 #include <Bnd_OBB.hxx>
-#include <Bnd_Box.hxx>
+#include <BRepBndLib.hxx>
+#include <BRepMesh_IncrementalMesh.hxx>
+#include <BRepMesh_Delaun.hxx>
+#include <BRepAdaptor_HSurface.hxx>
 
 #include "ui_Qcc.h"
 

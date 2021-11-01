@@ -39,7 +39,7 @@ public:
 
 signals:
     void selectionChanged(void);
-    void showObbBox(void);
+    void meshSelection(void);
 
 public slots:
     /* operations for the view */
