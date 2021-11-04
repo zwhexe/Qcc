@@ -11,6 +11,7 @@
 
 #include <V3d_View.hxx>
 #include <V3d_Viewer.hxx>
+#include <AIS_Shape.hxx>
 #include <AIS_ViewController.hxx>
 #include <AIS_InteractiveContext.hxx>
 
@@ -39,10 +40,13 @@ public:
 
 signals:
     void selectionChanged(void);
-    void meshSelection(void);
+    void obbSig(void);
+    void meshSig(void);
+    void deleteSig(void);
 
 public slots:
     /* operations for the view */
+    void show(const TopoDS_Shape&);
     void zoom(void);
     void pan(void);
     void rotate(void);

@@ -2,6 +2,7 @@
 
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_Shape.hxx>
+#include <vector>
 #include <QMainWindow>
 #include <QDebug>
 
@@ -54,11 +55,10 @@
 
 #include <Bnd_OBB.hxx>
 #include <BRepBndLib.hxx>
-#include <BRepMesh_IncrementalMesh.hxx>
-#include <BRepMesh_Delaun.hxx>
-#include <BRepAdaptor_HSurface.hxx>
 
 #include "ui_Qcc.h"
+
+using std::vector;
 
 namespace Ui {
     class QccClass;
@@ -108,8 +108,12 @@ private slots:
     void makeRevol(void);
     void makeLoft(void);
 
+    /* test tool functions */
     void testCut(void);
     void testHelix(void);
+    void obbShape(void);
+    void meshShape(void);
+    void deleteShape(void);
 
 private:
     Ui::QccClass *ui;

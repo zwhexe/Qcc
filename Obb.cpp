@@ -17,7 +17,7 @@ Obb::~Obb()
 
 }
 
-void Obb::displayOBB(QccView* myQccView)
+void Obb::displayOBB(QccView* myQccView, ObbLevel obblv)
 {
     Handle(AIS_InteractiveContext) aisContext = myQccView->getContext();
     if (!aisContext)
@@ -36,4 +36,9 @@ void Obb::displayOBB(QccView* myQccView)
     Handle(AIS_Shape) abox = new AIS_Shape(topoObb);
     abox->SetTransparency();
     myQccView->getContext()->Display(abox, Standard_True);
+}
+
+void Obb::isValid()
+{
+
 }

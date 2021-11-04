@@ -1,13 +1,16 @@
 #pragma once
 
 #include <QDebug>
+#include <algorithm>
 #include <vector>
+#include <cmath>
 
 #include <TopoDS_Shape.hxx>
 #include <Bnd_OBB.hxx>
 #include <BRepBuilderAPI_MakeWire.hxx>
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepBuilderAPI_MakeFace.hxx>
+#include <BRepBuilderAPI_MakePolygon.hxx>
 #include <BRepPrimAPI_MakePrism.hxx>
 
 #include <gp_Pnt.hxx>
@@ -15,10 +18,35 @@
 
 namespace Hand
 {
+    double getBndArea(const Bnd_OBB& bndObb, double enlarge = 0.001);
     TopoDS_Shape getBndShape(const Bnd_OBB&);
     TopoDS_Shape TriangleGetShape(std::vector<gp_Pnt>& triPoints);
     Bnd_OBB transformOBB(Bnd_OBB&, gp_Trsf&);
+    Bnd_OBB getBoxObb(TopoDS_Shape, double);
+    void displayTriangle(const QccView* myQccView, const vector<gp_Pnt>& triPnt);
     void transformTriPnts(std::vector<gp_Pnt>& triPnt1, std::vector<gp_Pnt>& triPnt2, gp_Trsf& trsf);
+}
+
+static double Hand::getBndArea(const Bnd_OBB& bndObb, double enlarge)
+{
+    enlarge += 0.0005;
+    if (bndObb.XHSize() < enlarge || bndObb.YHSize() < enlarge || bndObb.ZHSize() < enlarge)
+    {
+        double area1 = bndObb.XHSize() * bndObb.YHSize() * 4;        //半长轴
+        double area2 = bndObb.XHSize() * bndObb.ZHSize() * 4;
+        double area3 = bndObb.YHSize() * bndObb.ZHSize() * 4;
+        double area = std::max(area1, area2);
+        return std::max(area, area3);
+    }
+    else                                                             //半球面、球面的面包围盒是长方体
+    {
+        double area1 = bndObb.XHSize() * bndObb.YHSize() * 4;
+        double area2 = bndObb.XHSize() * bndObb.ZHSize() * 4;
+        double area3 = bndObb.YHSize() * bndObb.ZHSize() * 4;
+
+        double area = (area1 + area2 + area3) * 2;                     //长方体表面积
+        return area;
+    }
 }
 
 static TopoDS_Shape Hand::getBndShape(const Bnd_OBB& bndBox) 
@@ -83,4 +111,27 @@ static TopoDS_Shape Hand::TriangleGetShape(std::vector<gp_Pnt>& triPoints)
     TopoDS_Wire aWire = BRepBuilderAPI_MakeWire(e1, e2, e3);
     TopoDS_Face Face = BRepBuilderAPI_MakeFace(aWire);
     return Face;
+}
+
+static Bnd_OBB Hand::getBoxObb(TopoDS_Shape shp, double enlargeGap = 0.001)
+{
+    Bnd_OBB boxObb;
+    BRepBndLib brepBnd;
+    brepBnd.AddOBB(shp, boxObb, true, true, false);
+
+    return boxObb;
+}
+
+static void Hand::displayTriangle(const QccView* myQccView, const vector<gp_Pnt>& triPnt)
+{
+    BRepBuilderAPI_MakePolygon mkPoly;
+    mkPoly.Add(triPnt[0]);
+    mkPoly.Add(triPnt[1]);
+    mkPoly.Add(triPnt[2]);
+    mkPoly.Add(triPnt[0]);
+
+    BRepBuilderAPI_MakeFace mkFace(mkPoly.Wire());
+    TopoDS_Shape topoFace = mkFace.Shape();
+    Handle(AIS_Shape) aisFace = new AIS_Shape(topoFace);
+    myQccView->getContext()->Display(aisFace, Standard_True);
 }

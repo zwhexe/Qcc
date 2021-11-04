@@ -1,11 +1,18 @@
 #include "Qcc.h"
+#include "Obb.h"
 #include "QccView.h"
 #include "ShapeHandle.h"
 
+#include <QDebug>
 #include <QToolBar>
 #include <QTreeView>
 #include <QMessageBox>
 #include <QDockWidget>
+#include <TopLoc_Location.hxx>
+#include <BRepMesh_IncrementalMesh.hxx>
+#include <BRepMesh_Delaun.hxx>
+#include <BRepAdaptor_HSurface.hxx>
+#include <math_BullardGenerator.hxx>
 
 Qcc::Qcc(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::QccClass)
@@ -72,7 +79,9 @@ void Qcc::createActions(void)
     connect(ui->actionTest, &QAction::triggered, this, &Qcc::test);
     
     /* myQccView signal to do "test" */
-    connect(myQccView, &QccView::meshSelection, this, &Qcc::test);
+    connect(myQccView, &QccView::obbSig, this, &Qcc::obbShape);
+    connect(myQccView, &QccView::meshSig, this, &Qcc::meshShape);
+    connect(myQccView, &QccView::deleteSig, this, &Qcc::deleteShape);
 }
 
 void Qcc::createMenus(void)
@@ -137,15 +146,88 @@ void Qcc::about()
 
 void Qcc::test()
 {
-    TopoDS_Shape topoShp;
+    myQccView->getContext()->EraseAll(Standard_True);
+}
+
+void Qcc::meshShape()
+{
     if (myQccView->getContext()->HasDetectedShape())
-        topoShp = myQccView->getContext()->DetectedShape();
-    
+    {
+        Handle(AIS_InteractiveObject) aisObj = myQccView->getContext()->DetectedInteractive();
+        myQccView->getContext()->Erase(aisObj, Standard_True);
+
+        TopoDS_Shape topoShp = myQccView->getContext()->DetectedShape();
+        TopTools_IndexedMapOfShape faces;  //Add topoShp's face to faces list
+        TopExp::MapShapes(topoShp, TopAbs_FACE, faces);  //Seems not be used
+
+        TopoDS_Shape meshShp = topoShp;
+        Standard_Real linDef = 0.1;    //liner deflection
+        Standard_Real angDef = 0.5;     //angular deflection
+        BRepMesh_IncrementalMesh brepMesh(meshShp, linDef, Standard_True, angDef);
+        brepMesh.Perform();
+
+#if 1
+        int index = 0;
+        for (TopExp_Explorer exp(meshShp, TopAbs_FACE); exp.More(); exp.Next())
+        {
+            ++index;
+            TopoDS_Shape face = exp.Value();
+            Bnd_OBB obbf = Hand::getBoxObb(face);
+
+            TopLoc_Location aLoc;
+            TopoDS_Face aFace = TopoDS::Face(exp.Current());
+            /* Get meshed face data */
+            Handle(Poly_Triangulation) triMesh = BRep_Tool::Triangulation(aFace, aLoc);
+            if (triMesh)
+            {
+                TColgp_Array1OfPnt aTriNodes(1, triMesh->NbNodes());
+                aTriNodes = triMesh->Nodes();
+                Poly_Array1OfTriangle aTriangles(1, triMesh->NbTriangles());
+                aTriangles = triMesh->Triangles();
+                qDebug() << "\nFace No." << index << " Information:";
+                qDebug() << "Number of aTriNodes: " << triMesh->NbNodes();
+                qDebug() << "Number of aTriangles: " << triMesh->NbTriangles();
+                for (int i = 1; i <= triMesh->NbTriangles(); i++)
+                {
+                    Poly_Triangle trian = aTriangles.Value(i);
+                    Standard_Integer index1, index2, index3;
+                    trian.Get(index1, index2, index3);
+
+                    qDebug() << index1 << " " << index2 << " " << index3;
+                    gp_Pnt pnt1, pnt2, pnt3;
+                    pnt1 = aTriNodes[index1];
+                    pnt2 = aTriNodes[index2];
+                    pnt3 = aTriNodes[index3];
+
+                    if (pnt1.IsEqual(pnt2, 0.01) || pnt1.IsEqual(pnt3, 0.01) || pnt2.IsEqual(pnt3, 0.01))
+                        continue;
+                    vector<gp_Pnt> triPnt;
+                    triPnt.push_back(pnt1);
+                    triPnt.push_back(pnt2);
+                    triPnt.push_back(pnt3);
+                    Hand::displayTriangle(myQccView, triPnt);
+                }
+            }
+        }
+#endif
+    }
+}
+
+void Qcc::obbShape()
+{
+    if (myQccView->getContext()->HasDetectedShape())
+    {
+        TopoDS_Shape topoShp = myQccView->getContext()->DetectedCurrentShape();
+        Obb obbShp(topoShp);
+        
+        Handle(AIS_InteractiveObject) aisObj = myQccView->getContext()->DetectedInteractive();
+        myQccView->getContext()->Erase(aisObj, Standard_True);
+    }
 }
 
 void Qcc::makeBox()
 {
-    TopoDS_Shape aTopoBox = BRepPrimAPI_MakeBox(3.0, 4.0, 5.0).Shape();
+    TopoDS_Shape aTopoBox = BRepPrimAPI_MakeBox(300.0, 400.0, 500.0).Shape();
     Handle(AIS_Shape) anAisBox = new AIS_Shape(aTopoBox);
     anAisBox->SetColor(Quantity_NOC_AZURE);
     myQccView->getContext()->Display(anAisBox, Standard_True);
@@ -173,7 +255,7 @@ void Qcc::makeCone()
 void Qcc::makeSphere()
 {
     gp_Ax2 anAxis;
-    anAxis.SetLocation(gp_Pnt(6.0, 6.0, 10.5));
+    anAxis.SetLocation(gp_Pnt(6.0, 6.0, 30));
 
     TopoDS_Shape aTopoSphere = BRepPrimAPI_MakeSphere(anAxis, 2.5).Shape();
     Handle(AIS_Shape) anAisShpere = new AIS_Shape(aTopoSphere);
@@ -650,4 +732,13 @@ void Qcc::makeFaceHole()
     TopoDS_Shape aTopoHole = BRepPrimAPI_MakePrism(aFaceMaker.Face(), gp_Vec(0.0, 0.0, height));
     Handle(AIS_Shape) anAisHole = new AIS_Shape(aTopoHole);
     myQccView->getContext()->Display(anAisHole, Standard_True);
+}
+
+void Qcc::deleteShape()
+{
+    if (myQccView->getContext()->HasDetectedShape())
+    {
+        Handle(AIS_InteractiveObject) aisObj = myQccView->getContext()->DetectedInteractive();
+        myQccView->getContext()->Erase(aisObj, Standard_True);
+    }
 }

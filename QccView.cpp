@@ -91,6 +91,12 @@ void QccView::resizeEvent(QResizeEvent* /*theEvent*/)
 		myView->MustBeResized();
 }
 
+void QccView::show(const TopoDS_Shape& shp)
+{
+	Handle(AIS_Shape) aisShp = new AIS_Shape(shp);
+	this->myContext->Display(aisShp, Standard_True);
+}
+
 void QccView::zoom(void)
 {
 	myCurrentMode = CurrentAction3d::CurAction3d_DynamicZooming;
@@ -186,17 +192,28 @@ void QccView::onLButtonDown(const int /*theFlags*/, const QPoint thePoint)
 	myYmax = thePoint.y();
 }
 
-void QccView::onRButtonDown(const int /*theFlags*/, const QPoint /*thePoint*/)
+void QccView::onRButtonDown(const int theFlags, const QPoint /*thePoint*/)
 {
 	if (myContext->HasDetected())
 	{
 		QMenu menu;
-		QAction* actionVolume = menu.addAction("Select Solid");
-		QAction* actionFace = menu.addAction("Select Shell");
-		QAction* actionEdge = menu.addAction("Select Edge");
-		QAction* actionVertex = menu.addAction("Select Vertex");
-		QAction* actionOBB = menu.addAction("Mesh Selection");
-		connect(actionOBB, &QAction::triggered, this, &QccView::meshSelection);
+		if (theFlags & Qt::ControlModifier)
+		{
+			QAction* actionVolume = menu.addAction("Select Solid");
+			QAction* actionFace = menu.addAction("Select Shell");
+			QAction* actionEdge = menu.addAction("Select Edge");
+			QAction* actionVertex = menu.addAction("Select Vertex");
+
+		}
+		else
+		{
+			QAction* actionOBB = menu.addAction("OBB Selection");
+			QAction* actionMesh = menu.addAction("Mesh Selection");
+			QAction* actionErase = menu.addAction("Delete Selection");
+			connect(actionOBB, &QAction::triggered, this, &QccView::obbSig);
+			connect(actionMesh, &QAction::triggered, this, &QccView::meshSig);
+			connect(actionErase, &QAction::triggered, this, &QccView::deleteSig);
+		}
 		menu.exec(QCursor::pos());
 	}
 }
@@ -235,9 +252,13 @@ void QccView::onLButtonUp(const int theFlags, const QPoint thePoint)
 	}
 }
 
-void QccView::onMButtonUp(const int /*theFlags*/, const QPoint thePoint)
+void QccView::onMButtonUp(const int theFlags, const QPoint thePoint)
 {
-	if (thePoint.x() == myXmin && thePoint.y() == myYmin)
+	if (theFlags & Qt::ShiftModifier)
+	{
+		this->fitAll();
+	}
+	else if (thePoint.x() == myXmin && thePoint.y() == myYmin)
 	{
 		panByMiddleButton(thePoint);
 	}
