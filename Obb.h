@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <TopoDS_Shape.hxx>
+#include <TopoDS_Face.hxx>
 #include <AIS_Shape.hxx>
 
 #include <Bnd_OBB.hxx>
@@ -23,12 +24,14 @@ public:
 	explicit Obb(TopoDS_Shape);
 	~Obb();
 
-	void displayOBB(QccView* myQccView, ObbLevel obblv = ObbLevel::ObbFace);
-	void isValid();
+	void displayObb(QccView* myQccView, ObbLevel obblv = ObbLevel::ObbTriangle);
+	double getArea(void);
+	Standard_Boolean isValid(void);
 
 private:
+	TopoDS_Shape topoShape;
 	Bnd_OBB obbShape;
-	vector<Bnd_OBB> obbFace;
-	vector<vector<TopoDS_Face>> triFace;
+	vector<Bnd_OBB> obbList;
+	vector<vector<TopoDS_Face>> triList;
 };
 

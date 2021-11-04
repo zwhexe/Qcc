@@ -5,26 +5,92 @@
 #include <vector>
 #include <cmath>
 
+#include <TopoDS.hxx>
 #include <TopoDS_Shape.hxx>
-#include <Bnd_OBB.hxx>
+#include <TopoDS_Face.hxx>
+#include <GProp_GProps.hxx>
+
 #include <BRepBuilderAPI_MakeWire.hxx>
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepBuilderAPI_MakeFace.hxx>
 #include <BRepBuilderAPI_MakePolygon.hxx>
 #include <BRepPrimAPI_MakePrism.hxx>
 
+#include <BRepMesh_IncrementalMesh.hxx>
+
+#include <BRepGProp.hxx>
+#include <Bnd_OBB.hxx>
 #include <gp_Pnt.hxx>
 #include <gp_Trsf.hxx>
 
 namespace Hand
 {
+    double getFaceArea(const TopoDS_Shape& face);
     double getBndArea(const Bnd_OBB& bndObb, double enlarge = 0.001);
     TopoDS_Shape getBndShape(const Bnd_OBB&);
     TopoDS_Shape TriangleGetShape(std::vector<gp_Pnt>& triPoints);
     Bnd_OBB transformOBB(Bnd_OBB&, gp_Trsf&);
     Bnd_OBB getBoxObb(TopoDS_Shape, double);
+
+    vector<TopoDS_Face> geneTriFace(TopoDS_Face&);
     void displayTriangle(const QccView* myQccView, const vector<gp_Pnt>& triPnt);
     void transformTriPnts(std::vector<gp_Pnt>& triPnt1, std::vector<gp_Pnt>& triPnt2, gp_Trsf& trsf);
+}
+
+static vector<TopoDS_Face> Hand::geneTriFace(TopoDS_Face& topoFace)
+{
+    vector<TopoDS_Face> ret;
+    TopoDS_Shape topoShp = topoFace;
+
+    BRepMesh_IncrementalMesh brepMesh(topoShp, 1, Standard_True, 1);
+    brepMesh.Perform();
+
+    TopoDS_Face meshFace = TopoDS::Face(topoFace);
+    TopLoc_Location aLoc;
+    Handle(Poly_Triangulation) triMesh = BRep_Tool::Triangulation(meshFace, aLoc);
+    if (triMesh)
+    {
+        TColgp_Array1OfPnt aTriNodes(1, triMesh->NbNodes());
+        aTriNodes = triMesh->Nodes();
+        Poly_Array1OfTriangle aTriangles(1, triMesh->NbTriangles());
+        aTriangles = triMesh->Triangles();
+        for (int i = 1; i <= triMesh->NbTriangles(); i++)
+        {
+            Poly_Triangle trian = aTriangles.Value(i);
+            Standard_Integer index1, index2, index3;
+            trian.Get(index1, index2, index3);
+
+            //qDebug() << index1 << " " << index2 << " " << index3;
+            gp_Pnt pnt1, pnt2, pnt3;
+            pnt1 = aTriNodes[index1];
+            pnt2 = aTriNodes[index2];
+            pnt3 = aTriNodes[index3];
+
+            vector<gp_Pnt> triPnt;
+            if (pnt1.IsEqual(pnt2, 0.01) || pnt1.IsEqual(pnt3, 0.01) || pnt2.IsEqual(pnt3, 0.01))
+                continue;
+            triPnt.push_back(pnt1);
+            triPnt.push_back(pnt2);
+            triPnt.push_back(pnt3);
+
+            BRepBuilderAPI_MakePolygon mkPoly;
+            mkPoly.Add(triPnt[0]);
+            mkPoly.Add(triPnt[1]);
+            mkPoly.Add(triPnt[2]);
+            mkPoly.Add(triPnt[0]);
+
+            BRepBuilderAPI_MakeFace mkFace(mkPoly.Wire());
+            ret.push_back(mkFace.Face());
+        }
+    }
+    return ret;
+}
+
+static double Hand::getFaceArea(const TopoDS_Shape& face)
+{
+    GProp_GProps property;
+    BRepGProp::SurfaceProperties(face, property);
+    return property.Mass();
 }
 
 static double Hand::getBndArea(const Bnd_OBB& bndObb, double enlarge)

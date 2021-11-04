@@ -8,11 +8,20 @@
 #include <QTreeView>
 #include <QMessageBox>
 #include <QDockWidget>
-#include <TopLoc_Location.hxx>
+#include <QFileDialog>
+
+#include <IMeshTools_Parameters.hxx>
+#include <IMeshTools_Context.hxx>
+
 #include <BRepMesh_IncrementalMesh.hxx>
+#include <BRepMesh_DelabellaMeshAlgoFactory.hxx>
+#include <BRepMesh_EdgeDiscret.hxx>
+#include <BRepMesh_FaceDiscret.hxx>
+#include <BRepMesh_Context.hxx>
 #include <BRepMesh_Delaun.hxx>
-#include <BRepAdaptor_HSurface.hxx>
-#include <math_BullardGenerator.hxx>
+
+#include <TopLoc_Location.hxx>
+#include <STEPControl_Reader.hxx>
 
 Qcc::Qcc(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::QccClass)
@@ -27,6 +36,8 @@ Qcc::Qcc(QWidget *parent)
     createStatusBar();
 
     ui->menuPrimitive->addSeparator();
+    linDef = 1;
+    angDef = 1;
     
     /* make a cylinder with hollow */
     QAction* hollow = new QAction;
@@ -51,6 +62,8 @@ void Qcc::createActions(void)
 {
     /* connect ui menu's action with slots */
     /* File */
+    connect(ui->actionLoad, SIGNAL(triggered()), this, SLOT(load()));
+    connect(ui->actionSave, SIGNAL(triggered()), this, SLOT(save()));
     connect(ui->actionExit, SIGNAL(triggered()), this, SLOT(close()));
     /* View */
     connect(ui->actionZoom, SIGNAL(triggered()), myQccView, SLOT(zoom()));
@@ -91,6 +104,8 @@ void Qcc::createMenus(void)
 
 void Qcc::createToolBars(void)
 {
+    ui->mainToolBar->addAction(ui->actionLoad);
+    ui->mainToolBar->addAction(ui->actionSave);
     QToolBar* aToolBar = new QToolBar;
     
     aToolBar = addToolBar(tr("&Navigate"));
@@ -157,22 +172,35 @@ void Qcc::meshShape()
         myQccView->getContext()->Erase(aisObj, Standard_True);
 
         TopoDS_Shape topoShp = myQccView->getContext()->DetectedShape();
-        TopTools_IndexedMapOfShape faces;  //Add topoShp's face to faces list
-        TopExp::MapShapes(topoShp, TopAbs_FACE, faces);  //Seems not be used
-
         TopoDS_Shape meshShp = topoShp;
-        Standard_Real linDef = 0.1;    //liner deflection
-        Standard_Real angDef = 0.5;     //angular deflection
-        BRepMesh_IncrementalMesh brepMesh(meshShp, linDef, Standard_True, angDef);
-        brepMesh.Perform();
+
+        IMeshTools_Parameters meshParam;
+        meshParam.Angle = 1;
+        meshParam.Deflection = 1;
+        meshParam.AllowQualityDecrease = Standard_True;
+
+        Handle(IMeshTools_Context) meshContext = new BRepMesh_Context();
+        meshContext->SetEdgeDiscret(new BRepMesh_EdgeDiscret());
+        meshContext->SetFaceDiscret(new BRepMesh_FaceDiscret(new BRepMesh_DelabellaMeshAlgoFactory()));
+
+        BRepMesh_IncrementalMesh mesher;
+        mesher.SetShape(meshShp);
+        mesher.ChangeParameters() = meshParam;
+        mesher.Perform(meshContext);
 
 #if 1
-        int index = 0;
+        int index = 0, count = 0;
         for (TopExp_Explorer exp(meshShp, TopAbs_FACE); exp.More(); exp.Next())
         {
             ++index;
             TopoDS_Shape face = exp.Value();
-            Bnd_OBB obbf = Hand::getBoxObb(face);
+            Obb obbFace(face);
+            if (obbFace.isValid()) 
+            {
+                /* Check whether Bnd_OBB in this face is valid */
+                qDebug() << "Face number." << index << " is valid, skip mesh\n";
+                continue;   //face bnd_obb match check standard
+            }
 
             TopLoc_Location aLoc;
             TopoDS_Face aFace = TopoDS::Face(exp.Current());
@@ -184,16 +212,16 @@ void Qcc::meshShape()
                 aTriNodes = triMesh->Nodes();
                 Poly_Array1OfTriangle aTriangles(1, triMesh->NbTriangles());
                 aTriangles = triMesh->Triangles();
-                qDebug() << "\nFace No." << index << " Information:";
-                qDebug() << "Number of aTriNodes: " << triMesh->NbNodes();
-                qDebug() << "Number of aTriangles: " << triMesh->NbTriangles();
+                qDebug() << "Face" << index << " Information:";
+                qDebug() << "Number of aTriNodes:" << triMesh->NbNodes();
+                qDebug() << "Number of aTriangles:" << triMesh->NbTriangles() << "\n";
+                count += triMesh->NbTriangles();
                 for (int i = 1; i <= triMesh->NbTriangles(); i++)
                 {
                     Poly_Triangle trian = aTriangles.Value(i);
                     Standard_Integer index1, index2, index3;
                     trian.Get(index1, index2, index3);
 
-                    qDebug() << index1 << " " << index2 << " " << index3;
                     gp_Pnt pnt1, pnt2, pnt3;
                     pnt1 = aTriNodes[index1];
                     pnt2 = aTriNodes[index2];
@@ -209,6 +237,7 @@ void Qcc::meshShape()
                 }
             }
         }
+        qDebug() << "Total mesh triangles are:" << count << "\n";
 #endif
     }
 }
@@ -217,17 +246,80 @@ void Qcc::obbShape()
 {
     if (myQccView->getContext()->HasDetectedShape())
     {
-        TopoDS_Shape topoShp = myQccView->getContext()->DetectedCurrentShape();
-        Obb obbShp(topoShp);
-        
+        Handle(AIS_InteractiveContext) aisContext = myQccView->getContext();
+        if (!aisContext)
+            return;
+
+        TopoDS_Shape topoShp = aisContext->DetectedShape();
+        if (topoShp.IsNull()) 
+        {
+            return;
+        }
+            
+#if 0
         Handle(AIS_InteractiveObject) aisObj = myQccView->getContext()->DetectedInteractive();
         myQccView->getContext()->Erase(aisObj, Standard_True);
+        Obb obbShp(topoShp);
+        obbShp.displayObb(myQccView);
+
+#elif 1
+        /* create bndOBB for selected shape */
+        BRepBndLib ret;
+        Bnd_OBB obbShape;
+        ret.AddOBB(topoShp, obbShape, true, true, false);
+
+        /* convert BndOBB to TopoShape for display */
+        TopoDS_Shape topoObb = Hand::getBndShape(obbShape);
+        Handle(AIS_Shape) abox = new AIS_Shape(topoObb);
+        abox->SetColor(Quantity_NOC_GREEN);
+        abox->SetTransparency(0.9);
+        myQccView->getContext()->Display(abox, Standard_True);
+        
+        Handle(AIS_InteractiveObject) aisObj = myQccView->getContext()->DetectedInteractive();
+        //myQccView->getContext()->Erase(aisObj, Standard_True);
+#endif
     }
+}
+
+void Qcc::load()
+{
+    QString t_occ = "*.stp *.step";
+    QString all_filter;
+    all_filter += t_occ;
+
+    // get open file's path
+    QString filename = QFileDialog::getOpenFileName(this, tr("Load File"), "D:/model.stp", all_filter);
+    if (filename.isEmpty())  // 若文件名为空，则不执行操作
+    {
+        return;
+    }
+    else
+    {
+        filename.toLower();
+    }
+
+    STEPControl_Reader stepReader;  //only load English filename
+    IFSelect_ReturnStatus status = stepReader.ReadFile(filename.toLatin1().data());
+    stepReader.PrintCheckLoad(Standard_False, IFSelect_ItemsByEntity);
+    for (Standard_Integer i = 1; i <= stepReader.NbRootsForTransfer(); i++)
+        stepReader.TransferRoot(i);
+    
+    for (Standard_Integer i = 1; i <= stepReader.NbShapes(); i++)
+    {
+        TopoDS_Shape stepShp = stepReader.Shape(i);
+        myQccView->show(stepShp);
+    }
+    return;
+}
+
+void Qcc::save()
+{
+
 }
 
 void Qcc::makeBox()
 {
-    TopoDS_Shape aTopoBox = BRepPrimAPI_MakeBox(300.0, 400.0, 500.0).Shape();
+    TopoDS_Shape aTopoBox = BRepPrimAPI_MakeBox(30.0, 40.0, 50.0).Shape();
     Handle(AIS_Shape) anAisBox = new AIS_Shape(aTopoBox);
     anAisBox->SetColor(Quantity_NOC_AZURE);
     myQccView->getContext()->Display(anAisBox, Standard_True);
@@ -274,8 +366,8 @@ void Qcc::makeCylinder()
 
     anAisCylinder->SetColor(Quantity_NOC_RED);
 
-    anAxis.SetLocation(gp_Pnt(8.0, 30.0, 0.0));
-    TopoDS_Shape aTopoPie = BRepPrimAPI_MakeCylinder(anAxis, 3.0, 5.0, M_PI_2 * 3.0).Shape();
+    anAxis.SetLocation(gp_Pnt(15.0, 30.0, 0.0));
+    TopoDS_Shape aTopoPie = BRepPrimAPI_MakeCylinder(anAxis, 6.0, 5.0, M_PI_2 * 3.0).Shape();
     Handle(AIS_Shape) anAisPie = new AIS_Shape(aTopoPie);
 
     anAisPie->SetColor(Quantity_NOC_TAN);

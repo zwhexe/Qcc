@@ -194,26 +194,27 @@ void QccView::onLButtonDown(const int /*theFlags*/, const QPoint thePoint)
 
 void QccView::onRButtonDown(const int theFlags, const QPoint /*thePoint*/)
 {
-	if (myContext->HasDetected())
+	QMenu menu;
+	if (theFlags & Qt::ControlModifier)
 	{
-		QMenu menu;
-		if (theFlags & Qt::ControlModifier)
-		{
-			QAction* actionVolume = menu.addAction("Select Solid");
-			QAction* actionFace = menu.addAction("Select Shell");
-			QAction* actionEdge = menu.addAction("Select Edge");
-			QAction* actionVertex = menu.addAction("Select Vertex");
-
-		}
-		else
-		{
-			QAction* actionOBB = menu.addAction("OBB Selection");
-			QAction* actionMesh = menu.addAction("Mesh Selection");
-			QAction* actionErase = menu.addAction("Delete Selection");
-			connect(actionOBB, &QAction::triggered, this, &QccView::obbSig);
-			connect(actionMesh, &QAction::triggered, this, &QccView::meshSig);
-			connect(actionErase, &QAction::triggered, this, &QccView::deleteSig);
-		}
+		QAction* actionSolid = menu.addAction("Select Solid");
+		QAction* actionFace = menu.addAction("Select Shell");
+		QAction* actionEdge = menu.addAction("Select Edge");
+		QAction* actionVertex = menu.addAction("Select Vertex");
+		connect(actionSolid, &QAction::triggered, this, &QccView::selectSolid);
+		connect(actionFace, &QAction::triggered, this, &QccView::selectFace);
+		connect(actionEdge, &QAction::triggered, this, &QccView::selectEdge);
+		connect(actionVertex, &QAction::triggered, this, &QccView::selectVertex); 
+		menu.exec(QCursor::pos());
+	}
+	else if (myContext->HasDetected())
+	{
+		QAction* actionOBB = menu.addAction("OBB Selection");
+		QAction* actionMesh = menu.addAction("Mesh Selection");
+		QAction* actionErase = menu.addAction("Delete Selection");
+		connect(actionOBB, &QAction::triggered, this, &QccView::obbSig);
+		connect(actionMesh, &QAction::triggered, this, &QccView::meshSig);
+		connect(actionErase, &QAction::triggered, this, &QccView::deleteSig);
 		menu.exec(QCursor::pos());
 	}
 }
@@ -417,4 +418,28 @@ void QccView::panByMiddleButton(const QPoint& thePoint)
 	aCenterY = aSize.height() / 2;
 
 	myView->Pan(aCenterX - thePoint.x(), thePoint.y() - aCenterY);
+}
+
+void QccView::selectSolid()
+{
+	const int aSelectMode = AIS_Shape::SelectionMode(TopAbs_SHAPE);
+	myContext->Activate(aSelectMode);
+}
+
+void QccView::selectFace()
+{	
+	const int aSelectMode = AIS_Shape::SelectionMode(TopAbs_FACE);
+	myContext->Activate(aSelectMode);
+}
+
+void QccView::selectEdge()
+{
+	const int aSelectMode = AIS_Shape::SelectionMode(TopAbs_EDGE);
+	myContext->Activate(aSelectMode);
+}
+
+void QccView::selectVertex()
+{
+	const int aSelectMode = AIS_Shape::SelectionMode(TopAbs_VERTEX);
+	myContext->Activate(aSelectMode);
 }

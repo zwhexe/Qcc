@@ -53,6 +53,12 @@ public slots:
     void reset(void);
     void fitAll(void);
 
+    /* mouse select mode */
+    void selectSolid(void);
+    void selectFace(void);
+    void selectEdge(void);
+    void selectVertex(void);
+
 protected:
     /* paint events */
     virtual QPaintEngine* paintEngine() const;

@@ -78,6 +78,10 @@ public:
     Qcc(QWidget *parent = Q_NULLPTR);
     ~Qcc();
 
+public slots:
+    void load();
+    void save();
+
 protected:
     void createActions(void);
     void createMenus(void);
@@ -117,6 +121,9 @@ private slots:
 
 private:
     Ui::QccClass *ui;
+
+    Standard_Real linDef;    //liner deflection
+    Standard_Real angDef;     //angular deflection
 
     QccView* myQccView;
 };
