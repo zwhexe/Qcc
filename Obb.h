@@ -30,8 +30,8 @@ public:
 
 private:
 	TopoDS_Shape topoShape;
-	Bnd_OBB obbShape;
-	vector<Bnd_OBB> obbList;
-	vector<vector<TopoDS_Face>> triList;
+	Bnd_OBB obbShape;	      //topoShape Bnd_OBB
+	vector<Bnd_OBB> obbList;  //topoShape faces Bnd_OBB
+	vector<vector<TopoDS_Face>> triList;  //topoShape faces triangle list
 };
 

@@ -210,10 +210,12 @@ void QccView::onRButtonDown(const int theFlags, const QPoint /*thePoint*/)
 	else if (myContext->HasDetected())
 	{
 		QAction* actionOBB = menu.addAction("OBB Selection");
-		QAction* actionMesh = menu.addAction("Mesh Selection");
+		QAction* actionLoMesh = menu.addAction("Low Quality Mesh");
+		QAction* actionHiMesh = menu.addAction("High Quality Mesh");
 		QAction* actionErase = menu.addAction("Delete Selection");
 		connect(actionOBB, &QAction::triggered, this, &QccView::obbSig);
-		connect(actionMesh, &QAction::triggered, this, &QccView::meshSig);
+		connect(actionLoMesh, &QAction::triggered, this, [=]() { emit meshSig(true); });
+		connect(actionHiMesh, &QAction::triggered, this, [=]() { emit meshSig(false); });
 		connect(actionErase, &QAction::triggered, this, &QccView::deleteSig);
 		menu.exec(QCursor::pos());
 	}

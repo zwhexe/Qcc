@@ -8,6 +8,7 @@
 #include <TopoDS.hxx>
 #include <TopoDS_Shape.hxx>
 #include <TopoDS_Face.hxx>
+#include <TopExp_Explorer.hxx>
 #include <GProp_GProps.hxx>
 
 #include <BRepBuilderAPI_MakeWire.hxx>
@@ -16,7 +17,10 @@
 #include <BRepBuilderAPI_MakePolygon.hxx>
 #include <BRepPrimAPI_MakePrism.hxx>
 
+#include <BRepMesh_DelabellaMeshAlgoFactory.hxx>
 #include <BRepMesh_IncrementalMesh.hxx>
+#include <BRepMesh_FaceDiscret.hxx>
+#include <BRepMesh_Context.hxx>
 
 #include <BRepGProp.hxx>
 #include <Bnd_OBB.hxx>
@@ -32,24 +36,41 @@ namespace Hand
     Bnd_OBB transformOBB(Bnd_OBB&, gp_Trsf&);
     Bnd_OBB getBoxObb(TopoDS_Shape, double);
 
-    vector<TopoDS_Face> geneTriFace(TopoDS_Face&);
+    vector<TopoDS_Face> geneFaceTri(TopoDS_Face& topoFace);
+    bool isObbCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace);
     void displayTriangle(const QccView* myQccView, const vector<gp_Pnt>& triPnt);
     void transformTriPnts(std::vector<gp_Pnt>& triPnt1, std::vector<gp_Pnt>& triPnt2, gp_Trsf& trsf);
 }
 
-static vector<TopoDS_Face> Hand::geneTriFace(TopoDS_Face& topoFace)
+static vector<TopoDS_Face> Hand::geneFaceTri(TopoDS_Face& topoFace)
 {
     vector<TopoDS_Face> ret;
+    
+    //0.create mesher
+    BRepMesh_IncrementalMesh brepMesh;
+
+    //1.set TopoDS_Shape to mesher
     TopoDS_Shape topoShp = topoFace;
+    brepMesh.SetShape(topoShp);
+   
+    //2.set IMeshTools_Parameters to mesher
+    IMeshTools_Parameters meshParam;
+    meshParam.Angle = 1;
+    meshParam.Deflection = 1;
+    //meshParam.AllowQualityDecrease = Standard_True;
+    brepMesh.ChangeParameters() = meshParam;
 
-    BRepMesh_IncrementalMesh brepMesh(topoShp, 1, Standard_True, 1);
-    brepMesh.Perform();
+    //3.set mesh algo to mesh context and mesher perform this context
+    Handle(IMeshTools_Context) meshContext = new BRepMesh_Context();
+    meshContext->SetFaceDiscret(new BRepMesh_FaceDiscret(new BRepMesh_DelabellaMeshAlgoFactory()));
+    brepMesh.Perform(meshContext);
 
-    TopoDS_Face meshFace = TopoDS::Face(topoFace);
+    TopoDS_Face meshFace = TopoDS::Face(topoShp);
     TopLoc_Location aLoc;
     Handle(Poly_Triangulation) triMesh = BRep_Tool::Triangulation(meshFace, aLoc);
     if (triMesh)
     {
+        //for-loop mesh data and take triangle points
         TColgp_Array1OfPnt aTriNodes(1, triMesh->NbNodes());
         aTriNodes = triMesh->Nodes();
         Poly_Array1OfTriangle aTriangles(1, triMesh->NbTriangles());
@@ -60,7 +81,6 @@ static vector<TopoDS_Face> Hand::geneTriFace(TopoDS_Face& topoFace)
             Standard_Integer index1, index2, index3;
             trian.Get(index1, index2, index3);
 
-            //qDebug() << index1 << " " << index2 << " " << index3;
             gp_Pnt pnt1, pnt2, pnt3;
             pnt1 = aTriNodes[index1];
             pnt2 = aTriNodes[index2];
@@ -73,6 +93,7 @@ static vector<TopoDS_Face> Hand::geneTriFace(TopoDS_Face& topoFace)
             triPnt.push_back(pnt2);
             triPnt.push_back(pnt3);
 
+            //construct triangle face
             BRepBuilderAPI_MakePolygon mkPoly;
             mkPoly.Add(triPnt[0]);
             mkPoly.Add(triPnt[1]);
@@ -84,6 +105,18 @@ static vector<TopoDS_Face> Hand::geneTriFace(TopoDS_Face& topoFace)
         }
     }
     return ret;
+}
+
+static bool Hand::isObbCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace)
+{
+    vector<gp_Pnt> triPoints;
+    for (TopExp_Explorer exp(triFace, TopAbs_VERTEX); exp.More(); exp.Next())
+    {
+        TopoDS_Shape shape = exp.Current();
+        TopoDS_Vertex V = TopoDS::Vertex(shape);
+        gp_Pnt P = BRep_Tool::Pnt(V);
+        triPoints.push_back(P);
+    }
 }
 
 static double Hand::getFaceArea(const TopoDS_Shape& face)

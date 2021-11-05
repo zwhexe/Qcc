@@ -36,9 +36,6 @@ Qcc::Qcc(QWidget *parent)
     createStatusBar();
 
     ui->menuPrimitive->addSeparator();
-    linDef = 1;
-    angDef = 1;
-    
     /* make a cylinder with hollow */
     QAction* hollow = new QAction;
     hollow->setIconText(tr("Hollow"));
@@ -139,7 +136,9 @@ void Qcc::createToolBars(void)
 
     aToolBar = addToolBar(tr("&Help"));
     aToolBar->addAction(ui->actionAbout);
-    aToolBar->addAction(ui->actionTest);
+    QAction* eraseAll = new QAction("Erase");
+    connect(eraseAll, &QAction::triggered, this, &Qcc::erase);
+    aToolBar->addAction(eraseAll);
 }
 
 void Qcc::createStatusBar()
@@ -161,10 +160,15 @@ void Qcc::about()
 
 void Qcc::test()
 {
+    
+}
+
+void Qcc::erase()
+{
     myQccView->getContext()->EraseAll(Standard_True);
 }
 
-void Qcc::meshShape()
+void Qcc::meshShape(bool allowLow)
 {
     if (myQccView->getContext()->HasDetectedShape())
     {
@@ -175,12 +179,21 @@ void Qcc::meshShape()
         TopoDS_Shape meshShp = topoShp;
 
         IMeshTools_Parameters meshParam;
-        meshParam.Angle = 1;
-        meshParam.Deflection = 1;
-        meshParam.AllowQualityDecrease = Standard_True;
+        meshParam.Angle = 10;
+        meshParam.Deflection = 10;
+        meshParam.AngleInterior = 10.0;
+        meshParam.DeflectionInterior = 10.0;
+        meshParam.MinSize = -1.0;
+        meshParam.InParallel = Standard_True;
+        meshParam.Relative = Standard_False;
+        meshParam.InternalVerticesMode = Standard_True;
+        meshParam.ControlSurfaceDeflection = Standard_True;
+        meshParam.CleanModel = Standard_True;
+        meshParam.AdjustMinSize = Standard_False;
+        meshParam.ForceFaceDeflection = Standard_False;
+        meshParam.AllowQualityDecrease = allowLow;
 
         Handle(IMeshTools_Context) meshContext = new BRepMesh_Context();
-        meshContext->SetEdgeDiscret(new BRepMesh_EdgeDiscret());
         meshContext->SetFaceDiscret(new BRepMesh_FaceDiscret(new BRepMesh_DelabellaMeshAlgoFactory()));
 
         BRepMesh_IncrementalMesh mesher;
@@ -194,11 +207,12 @@ void Qcc::meshShape()
         {
             ++index;
             TopoDS_Shape face = exp.Value();
+           
+            /* Check whether Bnd_OBB in this face is valid */
             Obb obbFace(face);
             if (obbFace.isValid()) 
-            {
-                /* Check whether Bnd_OBB in this face is valid */
-                qDebug() << "Face number." << index << " is valid, skip mesh\n";
+            { 
+                //qDebug() << "Face number." << index << " is valid, skip mesh\n";
                 continue;   //face bnd_obb match check standard
             }
 
@@ -212,9 +226,7 @@ void Qcc::meshShape()
                 aTriNodes = triMesh->Nodes();
                 Poly_Array1OfTriangle aTriangles(1, triMesh->NbTriangles());
                 aTriangles = triMesh->Triangles();
-                qDebug() << "Face" << index << " Information:";
-                qDebug() << "Number of aTriNodes:" << triMesh->NbNodes();
-                qDebug() << "Number of aTriangles:" << triMesh->NbTriangles() << "\n";
+                qDebug() << "Face" << index << "has" << triMesh->NbTriangles() << "triangles";
                 count += triMesh->NbTriangles();
                 for (int i = 1; i <= triMesh->NbTriangles(); i++)
                 {
@@ -252,13 +264,13 @@ void Qcc::obbShape()
 
         TopoDS_Shape topoShp = aisContext->DetectedShape();
         if (topoShp.IsNull()) 
-        {
             return;
-        }
             
 #if 0
+        /* delete original TopoDS_Shape AIS_InteractiveObject */
         Handle(AIS_InteractiveObject) aisObj = myQccView->getContext()->DetectedInteractive();
         myQccView->getContext()->Erase(aisObj, Standard_True);
+        /* display triangle face by face from Obb */
         Obb obbShp(topoShp);
         obbShp.displayObb(myQccView);
 
@@ -274,9 +286,6 @@ void Qcc::obbShape()
         abox->SetColor(Quantity_NOC_GREEN);
         abox->SetTransparency(0.9);
         myQccView->getContext()->Display(abox, Standard_True);
-        
-        Handle(AIS_InteractiveObject) aisObj = myQccView->getContext()->DetectedInteractive();
-        //myQccView->getContext()->Erase(aisObj, Standard_True);
 #endif
     }
 }
@@ -295,7 +304,7 @@ void Qcc::load()
     }
     else
     {
-        filename.toLower();
+        filename = filename.toLower();
     }
 
     STEPControl_Reader stepReader;  //only load English filename

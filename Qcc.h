@@ -94,6 +94,7 @@ private slots:
     /* Help */
     void about(void);
     void test(void);
+    void erase(void);
 
     /* Primitive */
     void makeBox(void);
@@ -116,14 +117,11 @@ private slots:
     void testCut(void);
     void testHelix(void);
     void obbShape(void);
-    void meshShape(void);
+    void meshShape(bool);
     void deleteShape(void);
 
 private:
     Ui::QccClass *ui;
-
-    Standard_Real linDef;    //liner deflection
-    Standard_Real angDef;     //angular deflection
 
     QccView* myQccView;
 };

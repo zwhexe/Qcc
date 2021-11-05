@@ -41,7 +41,7 @@ public:
 signals:
     void selectionChanged(void);
     void obbSig(void);
-    void meshSig(void);
+    void meshSig(bool);
     void deleteSig(void);
 
 public slots:
@@ -109,7 +109,6 @@ private:
     Handle(V3d_Viewer) myViewer;
     Handle(V3d_View) myView;
     Handle(Graphic3d_GraphicDriver) myDriver;
-
 
     Standard_Integer myXmin;
     Standard_Integer myYmin;
