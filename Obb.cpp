@@ -18,7 +18,7 @@ Obb::Obb(TopoDS_Shape topoShp) : topoShape(topoShp)
     {
         BRepBndLib facebnd;
         Bnd_OBB obbface;
-        facebnd.AddOBB(exp.Value(), obbface, true, true, true);
+        facebnd.AddOBB(exp.Value(), obbface, true, true, false);
         obbList.push_back(obbface);
        
         TopoDS_Face topoface = TopoDS::Face(exp.Current());

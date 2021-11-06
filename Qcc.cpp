@@ -279,6 +279,9 @@ void Qcc::obbShape()
         BRepBndLib ret;
         Bnd_OBB obbShape;
         ret.AddOBB(topoShp, obbShape, true, true, false);
+        qDebug() << obbShape.XHSize();
+        qDebug() << obbShape.YHSize();
+        qDebug() << obbShape.ZHSize();
 
         /* convert BndOBB to TopoShape for display */
         TopoDS_Shape topoObb = Hand::getBndShape(obbShape);

@@ -6,9 +6,10 @@
 #include <cmath>
 
 #include <TopoDS.hxx>
-#include <TopoDS_Shape.hxx>
 #include <TopoDS_Face.hxx>
+#include <TopoDS_Shape.hxx>
 #include <TopExp_Explorer.hxx>
+#include <TColgp_Array1OfPnt.hxx>
 #include <GProp_GProps.hxx>
 
 #include <BRepBuilderAPI_MakeWire.hxx>
@@ -37,9 +38,10 @@ namespace Hand
     Bnd_OBB getBoxObb(TopoDS_Shape, double);
 
     vector<TopoDS_Face> geneFaceTri(TopoDS_Face& topoFace);
+    vector<gp_Pnt> transformTriPnts(std::vector<gp_Pnt>& triPnt, gp_Trsf& trsf);
+
     bool isObbCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace);
     void displayTriangle(const QccView* myQccView, const vector<gp_Pnt>& triPnt);
-    void transformTriPnts(std::vector<gp_Pnt>& triPnt1, std::vector<gp_Pnt>& triPnt2, gp_Trsf& trsf);
 }
 
 static vector<TopoDS_Face> Hand::geneFaceTri(TopoDS_Face& topoFace)
@@ -117,6 +119,80 @@ static bool Hand::isObbCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace)
         gp_Pnt P = BRep_Tool::Pnt(V);
         triPoints.push_back(P);
     }
+
+    gp_Trsf loc, locInvs;
+    loc.SetTransformation(bndObb.Position(), gp::XOY());
+    loc.Invert();
+
+    Bnd_OBB tObb = Hand::transformOBB(bndObb, loc);
+    vector<gp_Pnt> tTri = Hand::transformTriPnts(triPoints, loc);
+
+    //OBB旋转后的三个轴向量
+    gp_Vec e0(gp_Dir(1, 0, 0));
+    gp_Vec e1(gp_Dir(0, 1, 0));
+    gp_Vec e2(gp_Dir(0, 0, 1));
+    std::vector<gp_Vec> vecs{ e0,e1,e2 };
+
+    //三角形的3个边向量(不作测试)
+    gp_Vec f0(tTri[0], tTri[1]);
+    gp_Vec f1(tTri[1], tTri[2]);
+    gp_Vec f2(tTri[2], tTri[0]);
+    std::vector<gp_Vec> triVecs{ f0,f1,f2 };
+
+    //三角形的一个法向量
+    gp_Vec e3 = f0.Crossed(f1).Normalized();
+    vecs.push_back(e3);
+
+    //边x边的九个向量
+    for (int i = 0; i < 3; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
+            gp_Vec e = vecs[i].Crossed(triVecs[j]);
+            vecs.push_back(e);
+        }
+    }
+
+    //三个轴向单位的判断，直接构建三角面的包围盒，前三个向量
+    Bnd_OBB triObb;
+    TColgp_Array1OfPnt pnts(1, 3);
+    pnts.SetValue(1, tTri[0]);
+    pnts.SetValue(2, tTri[1]);
+    pnts.SetValue(3, tTri[2]);
+    triObb.ReBuild(pnts);
+    if (triObb.IsOut(tObb))
+        return false;
+
+    //三角形法向量投影是否重合 vecs[3]
+    gp_Vec p(tObb.Center(), tTri[0]);
+    double d = abs(p.Dot(e3));  //中心点到三角面的距离
+    double dd = tObb.XHSize() * abs(e3.X()) + tObb.YHSize() * abs(e3.Y()) + tObb.ZHSize() * abs(e3.Z());
+    if (d > dd)
+        return false;
+
+    //边x边叉积的九个向量 vecs[4~12]
+    for (int i = 4; i < 13; i++)
+    {
+        //三角形顶点在该向量的投影
+        double p0 = vecs[i].X() * tTri[0].X() + vecs[i].Y() * tTri[0].Y() + vecs[i].Z() * tTri[0].Z();
+        double p1 = vecs[i].X() * tTri[1].X() + vecs[i].Y() * tTri[1].Y() + vecs[i].Z() * tTri[1].Z();
+        double p2 = vecs[i].X() * tTri[2].X() + vecs[i].Y() * tTri[2].Y() + vecs[i].Z() * tTri[2].Z();
+        
+        double minTep = p0, maxTep = p0;
+
+        minTep = std::min(p0, p1);
+        minTep = std::min(minTep, p2);
+
+        maxTep = std::max(p0, p1);
+        maxTep = std::max(maxTep, p2);
+
+        double r = tObb.XHSize() * abs(vecs[i].X()) + tObb.YHSize() * abs(vecs[i].Y()) + tObb.ZHSize() * abs(vecs[i].Z());
+
+        if (minTep > r || maxTep < -r)
+            return false;
+    }
+
+    return true;
 }
 
 static double Hand::getFaceArea(const TopoDS_Shape& face)
@@ -151,7 +227,7 @@ static double Hand::getBndArea(const Bnd_OBB& bndObb, double enlarge)
 static TopoDS_Shape Hand::getBndShape(const Bnd_OBB& bndBox) 
 {
 	Bnd_OBB tObb = bndBox;
-	tObb.Enlarge(0.1);
+	tObb.Enlarge(0.01); //just for display bndBox
 
 	//Bnd_OBB vertex
 	gp_Pnt vertex[8];
@@ -192,12 +268,12 @@ static Bnd_OBB Hand::transformOBB(Bnd_OBB& bndObb, gp_Trsf& trsf)
     return bndret;
 }
 
-static void Hand::transformTriPnts(std::vector<gp_Pnt>& triPnt1, std::vector<gp_Pnt>& triPnt2, gp_Trsf& trsf)
+static vector<gp_Pnt> Hand::transformTriPnts(std::vector<gp_Pnt>& triPnt, gp_Trsf& trsf)
 {
-    triPnt2.clear();
-    for (int i = 0; i < triPnt1.size(); i++)
+    vector<gp_Pnt> tTri;
+    for (int i = 0; i < triPnt.size(); i++)
     {
-        triPnt2.push_back(triPnt2[i].Transformed(trsf));
+        tTri.push_back(triPnt[i].Transformed(trsf));
     }
 }
 
