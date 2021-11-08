@@ -192,8 +192,8 @@ void Qcc::test()
     Obb obbBox(aTopoBox);
     Obb obbFace(aTopoFace);
     //qDebug() << "Is Collision Face:" << Hand::isAABBCollideTri(obbFace.obbShape, tri);
-    qDebug() << "Is Collision Box:" << Hand::isAABBCollideTri(obbBox.obbShape, tri);
-    qDebug() << "Is Collision Box:" << Hand::isOBBCollideTri(obbBox.obbShape, tri);
+    qDebug() << "Is Collision AABB:" << Hand::isAABBCollideTri(obbBox.obbShape, tri);
+    qDebug() << "Is Collision OBB:" << Hand::isOBBCollideTri(obbBox.obbShape, tri);
 }
 
 void Qcc::erase()

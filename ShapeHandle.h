@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Qcc.h"
+#include "QccView.h"
 #include <QDebug>
 #include <algorithm>
 #include <vector>
@@ -10,6 +12,9 @@
 #include <TopoDS_Shape.hxx>
 #include <TopExp_Explorer.hxx>
 #include <TColgp_Array1OfPnt.hxx>
+
+#include <AIS_Shape.hxx>
+#include <AIS_ColoredShape.hxx>
 #include <GProp_GProps.hxx>
 
 #include <BRepBuilderAPI_MakeWire.hxx>
@@ -23,10 +28,18 @@
 #include <BRepMesh_FaceDiscret.hxx>
 #include <BRepMesh_Context.hxx>
 
+#include <PrsMgr_ListOfPresentableObjects.hxx>
+#include <PrsMgr_ListOfPresentations.hxx>
+#include <PrsMgr_PresentableObject.hxx>
+#include <PrsMgr_Presentation.hxx>
+#include <BRepBndLib.hxx>
 #include <BRepGProp.hxx>
 #include <Bnd_OBB.hxx>
+#include <Bnd_Box.hxx>
 #include <gp_Pnt.hxx>
 #include <gp_Trsf.hxx>
+
+using std::vector;
 
 namespace Hand
 {
@@ -36,6 +49,7 @@ namespace Hand
     TopoDS_Shape TriangleGetShape(std::vector<gp_Pnt>& triPoints);
     Bnd_OBB transformOBB(Bnd_OBB&, gp_Trsf&);
     Bnd_OBB getBoxObb(TopoDS_Shape, double);
+    Bnd_Box getFullAABB(Handle(AIS_Shape) shp);
 
     vector<TopoDS_Face> geneFaceTri(TopoDS_Face& topoFace);
     vector<gp_Pnt> transformTriPnts(std::vector<gp_Pnt>& triPnt, gp_Trsf& trsf);
@@ -402,6 +416,33 @@ static Bnd_OBB Hand::getBoxObb(TopoDS_Shape shp, double enlargeGap = 0.001)
     brepBnd.AddOBB(shp, boxObb, true, true, false);
 
     return boxObb;
+}
+
+static Bnd_Box Hand::getFullAABB(Handle(AIS_Shape) shp)
+{
+    Bnd_Box t_box;
+    if (shp->Children().Size())
+    {
+        for (PrsMgr_ListOfPresentableObjectsIter it(shp->Children()); it.More(); it.Next())
+        {
+            Handle(PrsMgr_PresentableObject) t_obj = it.Value();
+            if (t_obj->IsKind(STANDARD_TYPE(AIS_ColoredShape)))
+            {
+                Handle(AIS_ColoredShape) t_child = Handle(AIS_ColoredShape)::DownCast(t_obj);
+                Bnd_Box t_child_box = getFullAABB(t_child);
+                t_box.Add(t_child_box);
+            }
+        }
+    }
+    else
+    {
+        if (!shp->Shape().IsNull())
+        {
+            t_box = shp->BoundingBox();
+            t_box = t_box.Transformed(shp->Transformation());
+        }
+    }
+    return t_box;
 }
 
 static void Hand::displayTriangle(const QccView* myQccView, const vector<gp_Pnt>& triPnt)
