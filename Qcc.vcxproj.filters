@@ -13,6 +13,9 @@
     <ClCompile Include="Obb.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="RotCircle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Qcc.rc" />
@@ -55,5 +58,8 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ShapeHandle.h" />
+    <ClInclude Include="RotCircle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
