@@ -40,7 +40,8 @@ namespace Hand
     vector<TopoDS_Face> geneFaceTri(TopoDS_Face& topoFace);
     vector<gp_Pnt> transformTriPnts(std::vector<gp_Pnt>& triPnt, gp_Trsf& trsf);
 
-    bool isObbCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace);
+    bool isAABBCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace);
+    bool isOBBCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace);
     void displayTriangle(const QccView* myQccView, const vector<gp_Pnt>& triPnt);
 }
 
@@ -109,11 +110,112 @@ static vector<TopoDS_Face> Hand::geneFaceTri(TopoDS_Face& topoFace)
     return ret;
 }
 
-static bool Hand::isObbCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace)
+static bool Hand::isOBBCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace)
 {
     vector<gp_Pnt> triPoints;
+    int index = 0;
     for (TopExp_Explorer exp(triFace, TopAbs_VERTEX); exp.More(); exp.Next())
     {
+        if ((++index) % 2 == 0)
+            continue;
+        TopoDS_Shape shape = exp.Current();
+        TopoDS_Vertex V = TopoDS::Vertex(shape);
+        gp_Pnt P = BRep_Tool::Pnt(V);
+        triPoints.push_back(P);
+    }
+
+    gp_Vec f0(triPoints[0], triPoints[1]);
+    gp_Vec f1(triPoints[1], triPoints[2]);
+    gp_Vec f2(triPoints[2], triPoints[0]);
+    std::vector<gp_Vec> triVecs{ f0, f1, f2 };
+
+    gp_Vec bndXv = gp_Vec(bndObb.XDirection());
+    gp_Vec bndYv = gp_Vec(bndObb.YDirection());
+    gp_Vec bndZv = gp_Vec(bndObb.ZDirection());
+    gp_Vec bndOv = gp_Vec(bndObb.Center());
+    double bndX = bndObb.XHSize();
+    double bndY = bndObb.YHSize();
+    double bndZ = bndObb.ZHSize();
+    /* the bndVecs are all normalized */
+    std::vector<gp_Vec> boxVecs{ bndXv, bndYv, bndZv };
+   
+    /* 1.check 9 crossed vectors results */
+    for (int i = 0; i < 3; i++) //i is loop triVecs
+    {
+        for (int j = 0; j < 3; j++) //j is loop boxVecs
+        {
+            gp_Vec vec = triVecs[i].Crossed(boxVecs[j]);
+            double dBox = bndOv.Dot(vec);
+            double rBox = bndX * abs(bndXv.Dot(vec)) + bndY * abs(bndYv.Dot(vec)) + bndZ * abs(bndZv.Dot(vec));
+            double p0 = triPoints[0].X() * vec.X() + triPoints[0].Y() * vec.Y() + triPoints[0].Z() * vec.Z();
+            double p1 = triPoints[1].X() * vec.X() + triPoints[1].Y() * vec.Y() + triPoints[1].Z() * vec.Z();
+            double p2 = triPoints[2].X() * vec.X() + triPoints[2].Y() * vec.Y() + triPoints[2].Z() * vec.Z();
+            double pmin, pmax = p0;
+            switch (i) {
+                case 0:
+                    pmin = std::min(p0, p2);
+                    pmax = std::max(p0, p2);
+                    break;
+                case 1:
+                    pmin = std::min(p0, p2);
+                    pmax = std::max(p0, p2);
+                    break;
+                case 2:
+                    pmin = std::min(p0, p1);
+                    pmax = std::max(p0, p1);
+                    break;
+            }
+            if (pmin > rBox+dBox || pmax < -rBox+dBox)
+                return false;
+        }
+    }
+
+    /* 2.check 3 box face vectors results */
+    for (int j = 0; j < 3; j++) //j is loop boxVecs
+    {
+        gp_Vec vec = boxVecs[j];
+        double rBox = 0.0;
+        double dBox = bndOv.Dot(vec);
+        double p0 = triPoints[0].X() * vec.X() + triPoints[0].Y() * vec.Y() + triPoints[0].Z() * vec.Z();
+        double p1 = triPoints[1].X() * vec.X() + triPoints[1].Y() * vec.Y() + triPoints[1].Z() * vec.Z();
+        double p2 = triPoints[2].X() * vec.X() + triPoints[2].Y() * vec.Y() + triPoints[2].Z() * vec.Z();
+        double pmin = std::min(p0, std::min(p1, p2));
+        double pmax = std::max(p0, std::max(p1, p2));
+        switch(j) {
+            case 0:
+                rBox = bndX * abs(bndXv.Dot(vec));
+                break;
+            case 1:
+                rBox = bndY * abs(bndYv.Dot(vec));
+                break;
+            case 2:
+                rBox = bndZ * abs(bndZv.Dot(vec));
+                break;
+        }
+        if (pmin > rBox+dBox || pmax < -rBox+dBox)
+            return false;
+    }
+
+    /* 3.check 1 triangle face vector result */
+    gp_Vec vec = f0.Crossed(f1);
+    double p = triPoints[0].X() * vec.X() + triPoints[0].Y() * vec.Y() + triPoints[0].Z() * vec.Z();
+    double rBox = bndX * abs(bndXv.Dot(vec)) + bndY * abs(bndYv.Dot(vec)) + bndZ * abs(bndZv.Dot(vec));
+    double dBox = bndOv.Dot(vec);
+    if (p > rBox + dBox || p < -rBox + dBox)
+        return false;
+
+    return true;
+}
+
+static bool Hand::isAABBCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace)
+{
+    //transform Obb and Tri to AABB status
+    vector<gp_Pnt> triPoints;
+    int index = 0;
+    for (TopExp_Explorer exp(triFace, TopAbs_VERTEX); exp.More(); exp.Next())
+    {
+        if ((++index) % 2 == 0)
+            continue;
         TopoDS_Shape shape = exp.Current();
         TopoDS_Vertex V = TopoDS::Vertex(shape);
         gp_Pnt P = BRep_Tool::Pnt(V);
@@ -148,12 +250,15 @@ static bool Hand::isObbCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace)
     {
         for (int j = 0; j < 3; j++)
         {
+            //just for-loop e0, e1, e2
             gp_Vec e = vecs[i].Crossed(triVecs[j]);
+            if (e.X() != 0 && e.Y() != 0 && e.Z() != 0)
+                e.Normalize();
             vecs.push_back(e);
         }
     }
 
-    //三个轴向单位的判断，直接构建三角面的包围盒，前三个向量
+    //AABB的三个面的轴向单位的判断，直接构建三角面的包围盒，前三个向量
     Bnd_OBB triObb;
     TColgp_Array1OfPnt pnts(1, 3);
     pnts.SetValue(1, tTri[0]);
@@ -173,7 +278,7 @@ static bool Hand::isObbCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace)
     //边x边叉积的九个向量 vecs[4~12]
     for (int i = 4; i < 13; i++)
     {
-        //三角形顶点在该向量的投影
+        //三角形顶点在vecs[i]的投影
         double p0 = vecs[i].X() * tTri[0].X() + vecs[i].Y() * tTri[0].Y() + vecs[i].Z() * tTri[0].Z();
         double p1 = vecs[i].X() * tTri[1].X() + vecs[i].Y() * tTri[1].Y() + vecs[i].Z() * tTri[1].Z();
         double p2 = vecs[i].X() * tTri[2].X() + vecs[i].Y() * tTri[2].Y() + vecs[i].Z() * tTri[2].Z();
@@ -275,6 +380,8 @@ static vector<gp_Pnt> Hand::transformTriPnts(std::vector<gp_Pnt>& triPnt, gp_Trs
     {
         tTri.push_back(triPnt[i].Transformed(trsf));
     }
+
+    return tTri;
 }
 
 static TopoDS_Shape Hand::TriangleGetShape(std::vector<gp_Pnt>& triPoints)

@@ -31,7 +31,7 @@ Obb::~Obb()
 
 }
 
-void Obb::displayObb(QccView* myQccView, ObbLevel obblv)
+void Obb::displayObb(const QccView* myQccView, ObbLevel obblv)
 {
     if (triList.size() == 0)
         return;
@@ -45,6 +45,8 @@ void Obb::displayObb(QccView* myQccView, ObbLevel obblv)
         {
             TopoDS_Shape topo(t);
             Handle(AIS_Shape) aistri = new AIS_Shape(topo);
+            aistri->SetColor(Quantity_NOC_GREEN);
+            aistri->SetTransparency(0.9);
             myQccView->getContext()->Display(aistri, Standard_True);
         }
     }

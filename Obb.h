@@ -24,11 +24,11 @@ public:
 	explicit Obb(TopoDS_Shape);
 	~Obb();
 
-	void displayObb(QccView* myQccView, ObbLevel obblv = ObbLevel::ObbTriangle);
+	void displayObb(const QccView* myQccView, ObbLevel obblv = ObbLevel::ObbTriangle);
 	double getArea(void);
 	Standard_Boolean isValid(void);
 
-private:
+public:
 	TopoDS_Shape topoShape;
 	Bnd_OBB obbShape;	      //topoShape Bnd_OBB
 	vector<Bnd_OBB> obbList;  //topoShape faces Bnd_OBB
