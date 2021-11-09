@@ -1,3 +1,4 @@
+#include "Qcc.h"
 #include "QccView.h"
 #include <OpenGl_GraphicDriver.hxx>
 
@@ -17,7 +18,8 @@ QccView::QccView(QWidget* parent)
 	myYmax(0),
 	myCurrentMode(CurrentAction3d::CurAction3d_DynamicRotation),
 	myDegenerateModeIsOn(Standard_True),
-	myRectBand(NULL)
+	myRectBand(NULL),
+	myManipulator(NULL)
 {
 	setBackgroundRole(QPalette::NoRole);
 	/* set focus policy to threat QContextMenuEvent from keyboard */
@@ -68,6 +70,8 @@ void QccView::initContext()
 	}
 
 	myContext->SetPixelTolerance(1);
+
+	glbContext = myContext;
 }
 
 const Handle(AIS_InteractiveContext)& QccView::getContext() const
@@ -124,6 +128,37 @@ void QccView::fitAll(void)
 	myView->Redraw();
 }
 
+void QccView::initManipulator()
+{
+	if (myContext->HasDetectedShape())
+	{
+		Handle(AIS_InteractiveObject) aisObj = myContext->DetectedInteractive();
+		if (myManipulator) 
+		{
+			myManipulator->DeactivateCurrentMode();
+			myManipulator->Detach();
+		}
+		else
+		{
+			myManipulator = new AIS_Manipulator();
+		}
+
+		// 可以用 SetPart 禁用或启用某些轴的平移、旋转或缩放的可视部分
+		myManipulator->SetPart(0, AIS_ManipulatorMode::AIS_MM_Scaling, Standard_False);  // 禁用了 X 轴的缩放
+		myManipulator->SetPart(1, AIS_ManipulatorMode::AIS_MM_Rotation, Standard_False); // 禁用了 Y 轴的旋转
+		// 将操纵器附在创建的Shape上
+		myManipulator->Attach(aisObj);
+		// 启用指定的操纵模式
+		myManipulator->EnableMode(AIS_ManipulatorMode::AIS_MM_Translation);  // 启用移动
+		myManipulator->EnableMode(AIS_ManipulatorMode::AIS_MM_Rotation);     // 启用旋转
+		myManipulator->EnableMode(AIS_ManipulatorMode::AIS_MM_Scaling);      // 启用缩放
+		// 激活操纵器
+		myManipulator->SetModeActivationOnDetection(Standard_True);
+
+		myContext->UpdateCurrentViewer();
+	}
+}
+
 void QccView::mousePressEvent(QMouseEvent* theEvent)
 {
 	if (theEvent->button() == Qt::LeftButton)
@@ -172,7 +207,7 @@ void QccView::keyPressEvent(QKeyEvent* theEvent)
 	{
 		myCurrentMode = CurrentAction3d::CurAction3d_DynamicPanning;
 	}
-	else if (theEvent->modifiers() == Qt::ControlModifier)
+	else if (theEvent->modifiers() == Qt::AltModifier)
 	{
 		myCurrentMode = CurrentAction3d::CurAction3d_DynamicZooming;
 	}
@@ -183,13 +218,21 @@ void QccView::keyReleaseEvent(QKeyEvent* theEvent)
 	myCurrentMode = CurrentAction3d::CurAction3d_DynamicRotation;
 }
 
-void QccView::onLButtonDown(const int /*theFlags*/, const QPoint thePoint)
+void QccView::onLButtonDown(const int theFlags, const QPoint thePoint)
 {
 	/* save the current mouse coordinate in min */
 	myXmin = thePoint.x();
 	myYmin = thePoint.y();
 	myXmax = thePoint.x();
 	myYmax = thePoint.y();
+	if (theFlags & Qt::ControlModifier)
+	{
+		if (myManipulator->HasActiveMode())
+		{
+			myCurrentMode = CurrentAction3d::CurAction3d_Manipulating;
+			myManipulator->StartTransform(thePoint.x(), thePoint.y(), myView);
+		}
+	}
 }
 
 void QccView::onRButtonDown(const int theFlags, const QPoint /*thePoint*/)
@@ -209,10 +252,12 @@ void QccView::onRButtonDown(const int theFlags, const QPoint /*thePoint*/)
 	}
 	else if (myContext->HasDetected())
 	{
+		QAction* actionMan = menu.addAction("Manipulator");
 		QAction* actionOBB = menu.addAction("OBB Selection");
 		QAction* actionLoMesh = menu.addAction("Low Quality Mesh");
 		QAction* actionHiMesh = menu.addAction("High Quality Mesh");
 		QAction* actionErase = menu.addAction("Delete Selection");
+		connect(actionMan, &QAction::triggered, this, &QccView::initManipulator);
 		connect(actionOBB, &QAction::triggered, this, &QccView::obbSig);
 		connect(actionLoMesh, &QAction::triggered, this, [=]() { emit meshSig(true); });
 		connect(actionHiMesh, &QAction::triggered, this, [=]() { emit meshSig(false); });
@@ -240,6 +285,9 @@ void QccView::onLButtonUp(const int theFlags, const QPoint thePoint)
 	{
 		myRectBand->hide();
 	}
+
+	/* reset myManipulator */
+	myManipulator->StopTransform(Standard_True);
 
 	/* Ctrl for multi selection */
 	if (thePoint.x() == myXmin && thePoint.y() == myYmin)
@@ -287,6 +335,14 @@ void QccView::onMouseMove(const int theFlags, const QPoint thePoint)
 		{
 			myView->Zoom(myXmin, myYmin, thePoint.x(), thePoint.y());
 		}
+		else if (myCurrentMode == CurrentAction3d::CurAction3d_Manipulating)
+		{
+			if (myManipulator->HasActiveMode())
+			{
+				myManipulator->Transform(thePoint.x(), thePoint.y(), myView); // 应用鼠标从起始位置开始移动而产生的变换
+				myView->Redraw();
+			}
+		}
 		else
 		{
 			drawRubberBand(myXmin, myYmin, thePoint.x(), thePoint.y());
@@ -294,21 +350,21 @@ void QccView::onMouseMove(const int theFlags, const QPoint thePoint)
 		}
 	}
 
-	/* Ctrl for multi selection */
-	if (theFlags & Qt::ControlModifier)
-	{
-		multiMoveEvent(thePoint.x(), thePoint.y());
-	}
-	else
-	{
-		moveEvent(thePoint.x(), thePoint.y());
-	}
-
 	/* Middle button */
 	if (theFlags & Qt::MidButton)
 	{
 		if (myCurrentMode == CurrentAction3d::CurAction3d_DynamicRotation)
 			myView->Rotation(thePoint.x(), thePoint.y());
+	}
+
+	/* Ctrl for multi selection */
+	if (theFlags & Qt::ControlModifier)
+	{
+		moveEvent(thePoint.x(), thePoint.y());
+	}
+	else
+	{
+		multiMoveEvent(thePoint.x(), thePoint.y());
 	}
 }
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Qcc.h"
+#include "QccView.h"
 #include <vector>
 #include <TopoDS_Shape.hxx>
 #include <TopoDS_Face.hxx>
@@ -7,7 +9,6 @@
 
 #include <Bnd_OBB.hxx>
 #include <BRepBndLib.hxx>
-#include "QccView.h"
 
 using std::vector;
 

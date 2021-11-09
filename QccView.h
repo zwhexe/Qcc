@@ -14,9 +14,11 @@
 #include <AIS_Shape.hxx>
 #include <AIS_ViewController.hxx>
 #include <AIS_InteractiveContext.hxx>
+#include <AIS_Manipulator.hxx>
 
 class QMenu;
 class QRubberBand;
+class RotCircle;
 
 class QccView : public QGLWidget
 {
@@ -31,7 +33,8 @@ public:
         CurAction3d_WindowZooming,
         CurAction3d_DynamicPanning,
         CurAction3d_GlobalPanning,
-        CurAction3d_DynamicRotation
+        CurAction3d_DynamicRotation,
+        CurAction3d_Manipulating,
     };
 
 public:
@@ -58,6 +61,9 @@ public slots:
     void selectFace(void);
     void selectEdge(void);
     void selectVertex(void);
+
+    /* ais_manipulator */
+    void initManipulator(void);
 
 protected:
     /* paint events */
@@ -106,6 +112,7 @@ protected:
 
 private:
     Handle(AIS_InteractiveContext) myContext;
+    Handle(AIS_Manipulator) myManipulator;
     Handle(V3d_Viewer) myViewer;
     Handle(V3d_View) myView;
     Handle(Graphic3d_GraphicDriver) myDriver;

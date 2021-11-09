@@ -125,3 +125,5 @@ private:
 
     QccView* myQccView;
 };
+
+extern Handle(AIS_InteractiveContext) glbContext;

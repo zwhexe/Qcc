@@ -367,7 +367,7 @@ void Qcc::makeBox()
 {
     TopoDS_Shape aTopoBox = BRepPrimAPI_MakeBox(30.0, 40.0, 50.0).Shape();
     Handle(AIS_Shape) anAisBox = new AIS_Shape(aTopoBox);
-    anAisBox->SetColor(Quantity_NOC_AZURE);
+    anAisBox->SetColor(Quantity_NOC_LEMONCHIFFON1);
     myQccView->getContext()->Display(anAisBox, Standard_True);
 }
 
@@ -880,3 +880,5 @@ void Qcc::deleteShape()
         myQccView->getContext()->Erase(aisObj, Standard_True);
     }
 }
+
+Handle(AIS_InteractiveContext) glbContext = NULL;

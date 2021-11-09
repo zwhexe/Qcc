@@ -456,5 +456,5 @@ static void Hand::displayTriangle(const QccView* myQccView, const vector<gp_Pnt>
     BRepBuilderAPI_MakeFace mkFace(mkPoly.Wire());
     TopoDS_Shape topoFace = mkFace.Shape();
     Handle(AIS_Shape) aisFace = new AIS_Shape(topoFace);
-    myQccView->getContext()->Display(aisFace, Standard_True);
+    glbContext->Display(aisFace, Standard_True);
 }
