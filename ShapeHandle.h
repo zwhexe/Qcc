@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <vector>
 #include <cmath>
+#include <cstdlib>
+#include <ctime>
 
 #include <TopoDS.hxx>
 #include <TopoDS_Face.hxx>
@@ -39,12 +41,16 @@
 #include <gp_Pnt.hxx>
 #include <gp_Trsf.hxx>
 
+#define random(x) rand()%(x*2)-x+rand()/double(RAND_MAX)
+
 using std::vector;
 
 namespace Hand
 {
+    vector<gp_Pnt> geneRandTri(void);
     double getFaceArea(const TopoDS_Shape& face);
     double getBndArea(const Bnd_OBB& bndObb, double enlarge = 0.001);
+
     TopoDS_Shape getBndShape(const Bnd_OBB&);
     TopoDS_Shape TriangleGetShape(std::vector<gp_Pnt>& triPoints);
     Bnd_OBB transformOBB(Bnd_OBB&, gp_Trsf&);
@@ -57,6 +63,30 @@ namespace Hand
     bool isAABBCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace);
     bool isOBBCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace);
     void displayTriangle(const QccView* myQccView, const vector<gp_Pnt>& triPnt);
+}
+
+static vector<gp_Pnt> Hand::geneRandTri()
+{
+    /* create three point as triangle */
+    vector<gp_Pnt> ret;
+    srand((int)time(0));
+    double x = random(15);
+    double y = random(15);
+    double z = random(15);
+    gp_Pnt p(x, y, z);
+    ret.push_back(p);
+
+    gp_Trsf trsf1;
+    trsf1.SetTranslation(gp_Vec(random(1), random(1), random(1)));
+    p.Transform(trsf1);
+    ret.push_back(p);
+
+    gp_Trsf trsf2;
+    trsf2.SetTranslation(gp_Vec(random(1), random(1), random(1)));
+    p.Transform(trsf2);
+    ret.push_back(p);
+    
+    return ret;
 }
 
 static vector<TopoDS_Face> Hand::geneFaceTri(TopoDS_Face& topoFace)

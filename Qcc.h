@@ -1,8 +1,8 @@
 #pragma once
 
-#include <AIS_InteractiveContext.hxx>
-#include <AIS_Shape.hxx>
+#include <iostream>
 #include <vector>
+
 #include <QMainWindow>
 #include <QDebug>
 
@@ -24,8 +24,10 @@
 #include <TopExp_Explorer.hxx>
 #include <TColgp_Array1OfPnt2d.hxx>
 
-#include <BRepLib.hxx>
+#include <AIS_InteractiveContext.hxx>
+#include <AIS_Shape.hxx>
 
+#include <BRepLib.hxx>
 #include <BRepBuilderAPI_MakeVertex.hxx>
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepBuilderAPI_MakeWire.hxx>
@@ -122,8 +124,12 @@ private slots:
 
 private:
     Ui::QccClass *ui;
-
     QccView* myQccView;
+    Handle(AIS_InteractiveObject) aisBox;
+    Handle(AIS_InteractiveObject) aisFace;
+    TopoDS_Shape myBox;
+    TopoDS_Shape myFace;
+    TopoDS_Face myTri;
 };
 
 extern Handle(AIS_InteractiveContext) glbContext;

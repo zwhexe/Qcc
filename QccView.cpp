@@ -30,6 +30,8 @@ QccView::QccView(QWidget* parent)
 	setMouseTracking(true);
 
 	initContext();
+
+	myManipulator = new AIS_Manipulator();
 }
 
 void QccView::initContext() 
@@ -133,29 +135,27 @@ void QccView::initManipulator()
 	if (myContext->HasDetectedShape())
 	{
 		Handle(AIS_InteractiveObject) aisObj = myContext->DetectedInteractive();
-		if (myManipulator) 
+		if (myManipulator->IsAttached()) 
 		{
-			myManipulator->DeactivateCurrentMode();
 			myManipulator->Detach();
+			myContext->Erase(myManipulator, Standard_True);
 		}
 		else
 		{
-			myManipulator = new AIS_Manipulator();
+			// 可以用 SetPart 禁用或启用某些轴的平移、旋转或缩放的可视部分
+			myManipulator->SetPart(0, AIS_ManipulatorMode::AIS_MM_Scaling, Standard_False);  // 禁用了 X 轴的缩放
+			myManipulator->SetPart(1, AIS_ManipulatorMode::AIS_MM_Rotation, Standard_False); // 禁用了 Y 轴的旋转
+			// 将操纵器附在创建的Shape上
+			myManipulator->Attach(aisObj);
+			// 启用指定的操纵模式
+			myManipulator->EnableMode(AIS_ManipulatorMode::AIS_MM_Translation);  // 启用移动
+			myManipulator->EnableMode(AIS_ManipulatorMode::AIS_MM_Rotation);     // 启用旋转
+			myManipulator->EnableMode(AIS_ManipulatorMode::AIS_MM_Scaling);      // 启用缩放
+			// 激活操纵器
+			myManipulator->SetModeActivationOnDetection(Standard_True);
+
+			myContext->UpdateCurrentViewer();
 		}
-
-		// 可以用 SetPart 禁用或启用某些轴的平移、旋转或缩放的可视部分
-		myManipulator->SetPart(0, AIS_ManipulatorMode::AIS_MM_Scaling, Standard_False);  // 禁用了 X 轴的缩放
-		myManipulator->SetPart(1, AIS_ManipulatorMode::AIS_MM_Rotation, Standard_False); // 禁用了 Y 轴的旋转
-		// 将操纵器附在创建的Shape上
-		myManipulator->Attach(aisObj);
-		// 启用指定的操纵模式
-		myManipulator->EnableMode(AIS_ManipulatorMode::AIS_MM_Translation);  // 启用移动
-		myManipulator->EnableMode(AIS_ManipulatorMode::AIS_MM_Rotation);     // 启用旋转
-		myManipulator->EnableMode(AIS_ManipulatorMode::AIS_MM_Scaling);      // 启用缩放
-		// 激活操纵器
-		myManipulator->SetModeActivationOnDetection(Standard_True);
-
-		myContext->UpdateCurrentViewer();
 	}
 }
 
@@ -216,6 +216,7 @@ void QccView::keyPressEvent(QKeyEvent* theEvent)
 void QccView::keyReleaseEvent(QKeyEvent* theEvent)
 {
 	myCurrentMode = CurrentAction3d::CurAction3d_DynamicRotation;
+	myManipulator->DeactivateCurrentMode();
 }
 
 void QccView::onLButtonDown(const int theFlags, const QPoint thePoint)

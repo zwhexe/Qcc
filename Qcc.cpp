@@ -160,40 +160,28 @@ void Qcc::about()
 
 void Qcc::test()
 {   
-    gp_Pln pln(gp_Pnt(0.0, 0.0, 10.0), gp_Dir(0, 0, 1));
-    TopoDS_Shape aTopoFace = BRepBuilderAPI_MakeFace(pln, 0, 10, 0, 10).Shape();
-    gp_Trsf trsf;
-    trsf.SetRotation(gp_Ax1(gp_Pnt(0.0, 0.0, 10.0), gp::DX()), -M_PI_4);
-    BRepBuilderAPI_Transform brepTrsf(aTopoFace, trsf);
-    aTopoFace = brepTrsf.Shape();
+    int count = 0;
+    for (int i = 0; i < 1000; i++)
+    {
+        makeBox();
+        Obb obbBox(myBox);
+        Obb obbFace(myFace);
+        
+        if (Hand::isAABBCollideTri(obbBox.obbShape, myTri) || Hand::isOBBCollideTri(obbBox.obbShape, myTri))
+        {
+            count++;
+            qDebug() << "Box Collision AABB:" << Hand::isAABBCollideTri(obbBox.obbShape, myTri);
+            qDebug() << "Box Collision OBB:" << Hand::isOBBCollideTri(obbBox.obbShape, myTri);
+        }
 
-    TopoDS_Shape aTopoBox = BRepPrimAPI_MakePrism(aTopoFace, gp_Vec(0.0, -8.0, -8.0));
-    Handle(AIS_Shape) anAisFace = new AIS_Shape(aTopoFace);
-    anAisFace->SetColor(Quantity_NOC_BLUE1);
-    anAisFace->SetTransparency(0.7);
-    myQccView->getContext()->Display(anAisFace, Standard_True);
-    Handle(AIS_Shape) anAisBox = new AIS_Shape(aTopoBox);
-    anAisBox->SetColor(Quantity_NOC_CADETBLUE);
-    anAisBox->SetTransparency(0.7);
-    myQccView->getContext()->Display(anAisBox, Standard_True);
-
-    gp_Pnt p1(5.0, 15.0, 15.0);
-    gp_Pnt p2(5.0, 5.0, 15.0);
-    gp_Pnt p3(5.0, 15.0, 6.0);
-    TopoDS_Edge e1 = BRepBuilderAPI_MakeEdge(p1, p2);
-    TopoDS_Edge e2 = BRepBuilderAPI_MakeEdge(p2, p3);
-    TopoDS_Edge e3 = BRepBuilderAPI_MakeEdge(p3, p1);
-    TopoDS_Wire wire = BRepBuilderAPI_MakeWire(e1, e2, e3);
-    TopoDS_Face tri = BRepBuilderAPI_MakeFace(wire);
-    Handle(AIS_Shape) anAisTri = new AIS_Shape(TopoDS_Shape(tri));
-    anAisTri->SetColor(Quantity_NOC_LIGHTSKYBLUE);
-    myQccView->getContext()->Display(anAisTri, Standard_True);
-    
-    Obb obbBox(aTopoBox);
-    Obb obbFace(aTopoFace);
-    //qDebug() << "Is Collision Face:" << Hand::isAABBCollideTri(obbFace.obbShape, tri);
-    qDebug() << "Is Collision AABB:" << Hand::isAABBCollideTri(obbBox.obbShape, tri);
-    qDebug() << "Is Collision OBB:" << Hand::isOBBCollideTri(obbBox.obbShape, tri);
+        if (Hand::isAABBCollideTri(obbFace.obbShape, myTri) || Hand::isOBBCollideTri(obbFace.obbShape, myTri))
+        {
+            count++;
+            qDebug() << "Face Collision AABB : " << Hand::isAABBCollideTri(obbBox.obbShape, myTri);
+            qDebug() << "Face Collision OBB:" << Hand::isOBBCollideTri(obbBox.obbShape, myTri);
+        }
+    }
+    qDebug() << "Total" << count << "are true";
 }
 
 void Qcc::erase()
@@ -365,10 +353,48 @@ void Qcc::save()
 
 void Qcc::makeBox()
 {
-    TopoDS_Shape aTopoBox = BRepPrimAPI_MakeBox(30.0, 40.0, 50.0).Shape();
+    if (!myBox.IsNull() || !myFace.IsNull())
+    {
+        myBox.Nullify();
+        myFace.Nullify();
+        myQccView->getContext()->Erase(aisBox, Standard_False);
+        myQccView->getContext()->Erase(aisFace, Standard_False);
+        myQccView->getContext()->UpdateCurrentViewer();
+    }
+
+    gp_Pln pln(gp_Pnt(0.0, 0.0, 10.0), gp_Dir(0, 0, 1));
+    TopoDS_Shape aTopoFace = BRepBuilderAPI_MakeFace(pln, 0, 10, 0, 10).Shape();
+    gp_Trsf trsf;
+    trsf.SetRotation(gp_Ax1(gp_Pnt(0.0, 0.0, 10.0), gp::DX()), -M_PI_4);
+    BRepBuilderAPI_Transform brepTrsf(aTopoFace, trsf);
+    aTopoFace = brepTrsf.Shape();
+    myFace = aTopoFace;
+    TopoDS_Shape aTopoBox = BRepPrimAPI_MakePrism(aTopoFace, gp_Vec(0.0, -8.0, -8.0));
+    myBox = aTopoBox;
+
+    Handle(AIS_Shape) anAisFace = new AIS_Shape(aTopoFace);
+    anAisFace->SetColor(Quantity_NOC_BLUE1);
+    anAisFace->SetTransparency(0.7);
+    myQccView->getContext()->Display(anAisFace, Standard_True);
+    aisBox = anAisFace;
+
     Handle(AIS_Shape) anAisBox = new AIS_Shape(aTopoBox);
-    anAisBox->SetColor(Quantity_NOC_LEMONCHIFFON1);
+    anAisBox->SetColor(Quantity_NOC_CADETBLUE);
+    anAisBox->SetTransparency(0.7);
     myQccView->getContext()->Display(anAisBox, Standard_True);
+    aisBox = anAisBox;
+
+    vector<gp_Pnt> p = Hand::geneRandTri();
+    TopoDS_Edge e1 = BRepBuilderAPI_MakeEdge(p[0], p[1]);
+    TopoDS_Edge e2 = BRepBuilderAPI_MakeEdge(p[1], p[2]);
+    TopoDS_Edge e3 = BRepBuilderAPI_MakeEdge(p[2], p[0]);
+    TopoDS_Wire wire = BRepBuilderAPI_MakeWire(e1, e2, e3);
+    TopoDS_Face tri = BRepBuilderAPI_MakeFace(wire);
+    myTri = tri;
+
+    Handle(AIS_Shape) anAisTri = new AIS_Shape(TopoDS_Shape(tri));
+    anAisTri->SetColor(Quantity_NOC_LIGHTSKYBLUE);
+    myQccView->getContext()->Display(anAisTri, Standard_True);
 }
 
 void Qcc::makeCone()
