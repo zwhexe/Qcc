@@ -160,28 +160,35 @@ void Qcc::about()
 
 void Qcc::test()
 {   
-    int count = 0;
     for (int i = 0; i < 1000; i++)
     {
         makeBox();
         Obb obbBox(myBox);
         Obb obbFace(myFace);
-        
-        if (Hand::isAABBCollideTri(obbBox.obbShape, myTri) || Hand::isOBBCollideTri(obbBox.obbShape, myTri))
+       
+        /* test box collide tri results between AABB and OBB method*/
+        bool boxAABB = Hand::isAABBCollideTri(obbBox.obbShape, myTri);
+        bool boxOBB = Hand::isOBBCollideTri(obbBox.obbShape, myTri);
+        if (boxAABB != boxOBB)
         {
-            count++;
-            qDebug() << "Box Collision AABB:" << Hand::isAABBCollideTri(obbBox.obbShape, myTri);
-            qDebug() << "Box Collision OBB:" << Hand::isOBBCollideTri(obbBox.obbShape, myTri);
+            Handle(AIS_Shape) aisTri = new AIS_Shape(myTri);
+            aisTri->SetColor(Quantity_NOC_RED);
+            myQccView->getContext()->Display(aisTri, Standard_True);
+            qDebug() << "boxAABB:" << boxAABB << " " << "boxOBB:" << boxOBB;
         }
-
-        if (Hand::isAABBCollideTri(obbFace.obbShape, myTri) || Hand::isOBBCollideTri(obbFace.obbShape, myTri))
+        
+        /* test face collide tri results between AABB and OBB method*/
+        bool faceAABB = Hand::isAABBCollideTri(obbFace.obbShape, myTri);
+        bool faceOBB = Hand::isOBBCollideTri(obbFace.obbShape, myTri);
+        if (faceAABB != faceOBB)
         {
-            count++;
-            qDebug() << "Face Collision AABB : " << Hand::isAABBCollideTri(obbBox.obbShape, myTri);
-            qDebug() << "Face Collision OBB:" << Hand::isOBBCollideTri(obbBox.obbShape, myTri);
+            Handle(AIS_Shape) aisTri = new AIS_Shape(myTri);
+            aisTri->SetColor(Quantity_NOC_RED4);
+            myQccView->getContext()->Display(aisTri, Standard_True);
+            qDebug() << "faceAABB:" << faceAABB << " " << "faceOBB:" << faceOBB;
         }
     }
-    qDebug() << "Total" << count << "are true";
+    qDebug() << "Done";
 }
 
 void Qcc::erase()
@@ -353,23 +360,26 @@ void Qcc::save()
 
 void Qcc::makeBox()
 {
-    if (!myBox.IsNull() || !myFace.IsNull())
+    if (!myBox.IsNull())
     {
         myBox.Nullify();
-        myFace.Nullify();
-        myQccView->getContext()->Erase(aisBox, Standard_False);
-        myQccView->getContext()->Erase(aisFace, Standard_False);
-        myQccView->getContext()->UpdateCurrentViewer();
+        myQccView->getContext()->Erase(aisBox, Standard_True);
     }
+    if (!myFace.IsNull())
+    {
+        myFace.Nullify();
+        myQccView->getContext()->Erase(aisFace, Standard_True);
+    }
+    myQccView->getContext()->UpdateCurrentViewer();
 
-    gp_Pln pln(gp_Pnt(0.0, 0.0, 10.0), gp_Dir(0, 0, 1));
-    TopoDS_Shape aTopoFace = BRepBuilderAPI_MakeFace(pln, 0, 10, 0, 10).Shape();
+    gp_Pln pln(gp_Pnt(0.0, 0.0, 30.0), gp_Dir(0, 0, 1));
+    TopoDS_Shape aTopoFace = BRepBuilderAPI_MakeFace(pln, 0, 30, 0, 40).Shape();
     gp_Trsf trsf;
-    trsf.SetRotation(gp_Ax1(gp_Pnt(0.0, 0.0, 10.0), gp::DX()), -M_PI_4);
+    trsf.SetRotation(gp_Ax1(gp_Pnt(0.0, 0.0, 30.0), gp::DX()), -M_PI_4);
     BRepBuilderAPI_Transform brepTrsf(aTopoFace, trsf);
     aTopoFace = brepTrsf.Shape();
     myFace = aTopoFace;
-    TopoDS_Shape aTopoBox = BRepPrimAPI_MakePrism(aTopoFace, gp_Vec(0.0, -8.0, -8.0));
+    TopoDS_Shape aTopoBox = BRepPrimAPI_MakePrism(aTopoFace, gp_Vec(0.0, -20.0, -20.0));
     myBox = aTopoBox;
 
     Handle(AIS_Shape) anAisFace = new AIS_Shape(aTopoFace);

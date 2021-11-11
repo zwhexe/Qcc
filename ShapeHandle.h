@@ -77,14 +77,12 @@ static vector<gp_Pnt> Hand::geneRandTri()
     ret.push_back(p);
 
     gp_Trsf trsf1;
-    trsf1.SetTranslation(gp_Vec(random(1), random(1), random(1)));
-    p.Transform(trsf1);
-    ret.push_back(p);
+    trsf1.SetTranslation(gp_Vec(random(2), random(2), random(2)));
+    ret.push_back(p.Transformed(trsf1));
 
     gp_Trsf trsf2;
-    trsf2.SetTranslation(gp_Vec(random(1), random(1), random(1)));
-    p.Transform(trsf2);
-    ret.push_back(p);
+    trsf2.SetTranslation(gp_Vec(random(2), random(2), random(2)));
+    ret.push_back(p.Transformed(trsf2));
     
     return ret;
 }
