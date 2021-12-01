@@ -2,6 +2,8 @@
 #include "Obb.h"
 #include "QccView.h"
 #include "ShapeHandle.h"
+#include <time.h>
+#include <omp.h>
 
 #include <QDebug>
 #include <QToolBar>
@@ -34,6 +36,10 @@ Qcc::Qcc(QWidget *parent)
     createMenus();
     createToolBars();
     createStatusBar();
+
+    myStatusBar = new QStatusBar(this);
+    this->setStatusBar(myStatusBar);
+
 
     ui->menuPrimitive->addSeparator();
     /* make a cylinder with hollow */
@@ -91,6 +97,7 @@ void Qcc::createActions(void)
     /* myQccView signal to do "test" */
     connect(myQccView, &QccView::obbSig, this, &Qcc::obbShape);
     connect(myQccView, &QccView::meshSig, this, &Qcc::meshShape);
+    connect(myQccView, &QccView::anlsSig, this, &Qcc::anlsShape);
     connect(myQccView, &QccView::deleteSig, this, &Qcc::deleteShape);
 }
 
@@ -143,8 +150,6 @@ void Qcc::createToolBars(void)
 
 void Qcc::createStatusBar()
 {
-    QStatusBar* aStatusBar = new QStatusBar(this);
-    this->setStatusBar(aStatusBar);
     ui->actionAbout->setStatusTip(tr("Qcc Demo Info"));
     ui->actionReset->setStatusTip(tr("Reset Model View"));
     ui->actionFitAll->setStatusTip(tr("Fit Models View"));
@@ -159,7 +164,8 @@ void Qcc::about()
 }
 
 void Qcc::test()
-{   
+{
+    clock_t t1 = clock();
     for (int i = 0; i < 1000; i++)
     {
         makeBox();
@@ -188,12 +194,92 @@ void Qcc::test()
             qDebug() << "faceAABB:" << faceAABB << " " << "faceOBB:" << faceOBB;
         }
     }
-    qDebug() << "Done";
+    clock_t t2 = clock();
+    qDebug() << "Time: " << t2 - t1 << endl;
 }
 
 void Qcc::erase()
 {
     myQccView->getContext()->EraseAll(Standard_True);
+}
+
+void Qcc::anlsShape()
+{
+    if (myQccView->getContext()->HasDetectedShape())
+    {
+        Handle(AIS_InteractiveObject) aisObj = myQccView->getContext()->DetectedInteractive();
+        TopoDS_Shape topoShp = myQccView->getContext()->DetectedShape();
+
+        int count = 0;
+        switch (myQccView->getSelectMode())
+        {
+        case 6:
+        {   //How many faces included by this solid
+            for (TopExp_Explorer exp(topoShp, TopAbs_FACE); exp.More(); exp.Next())
+            {
+                TopoDS_Face face = TopoDS::Face(exp.Value());
+                count++;
+            }
+            QString info = QString("Face Number: %1").arg(count);
+            myStatusBar->showMessage(info);
+            break;
+        }
+        case 4:
+        {   //How many edges included by this face
+            for (TopExp_Explorer exp(topoShp, TopAbs_EDGE); exp.More(); exp.Next())
+            {
+                TopoDS_Edge edge = TopoDS::Edge(exp.Value());
+                count++;
+            } 
+            QString info = QString("Edge Number: %1").arg(count);
+            myStatusBar->showMessage(info);
+            break;
+        }
+        case 2:
+        {   //What faces commoned this edge
+            TopoDS_Edge edge = TopoDS::Edge(topoShp);
+            if (edgeFaceMap.Contains(edge))
+            {
+                TopoDS_ListOfShape findFace = edgeFaceMap.FindFromKey(edge);
+                TopoDS_ListOfShape filterFace;
+                for (auto fc : findFace)
+                {
+                    Handle(AIS_Shape) aisFc = new AIS_Shape(fc);
+                    aisFc->SetColor(Quantity_NOC_RED4);
+                    myQccView->getContext()->Display(aisFc, Standard_True);
+                }
+            }
+            else
+            {
+                myStatusBar->showMessage(tr("No such edge in Map"));
+            }
+            break;
+        }
+        case 1:
+        {   //What the location of the vertex
+            TopoDS_Vertex vertex = TopoDS::Vertex(topoShp);
+            gp_Pnt pnt = BRep_Tool::Pnt(vertex);
+            QString info = QString("Vertex Location:(%1,%2,%3)").arg(pnt.X()).arg(pnt.Y()).arg(pnt.Z());
+            myStatusBar->showMessage(info);
+            break;
+        }
+        default:
+        {   //How many solids in this shape
+            edgeFaceMap.Clear();
+            for (TopExp_Explorer exp(topoShp, TopAbs_FACE); exp.More(); exp.Next())
+            {
+                {
+                    TopoDS_Face face = TopoDS::Face(exp.Value());
+                    TopExp::MapShapesAndAncestors(face, TopAbs_EDGE, TopAbs_FACE, edgeFaceMap);
+                    count++;
+                }
+            }
+            QString info = QString("Face Number: %1").arg(count);
+            myStatusBar->showMessage(info);
+            break;
+        }
+        }
+    }
 }
 
 void Qcc::meshShape(bool allowLow)
@@ -445,13 +531,11 @@ void Qcc::makeCylinder()
 
     TopoDS_Shape aTopoCylinder = BRepPrimAPI_MakeCylinder(anAxis, 3.0, 5.0).Shape();
     Handle(AIS_Shape) anAisCylinder = new AIS_Shape(aTopoCylinder);
-
     anAisCylinder->SetColor(Quantity_NOC_RED);
 
     anAxis.SetLocation(gp_Pnt(15.0, 30.0, 0.0));
     TopoDS_Shape aTopoPie = BRepPrimAPI_MakeCylinder(anAxis, 6.0, 5.0, M_PI_2 * 3.0).Shape();
     Handle(AIS_Shape) anAisPie = new AIS_Shape(aTopoPie);
-
     anAisPie->SetColor(Quantity_NOC_TAN);
 
     myQccView->getContext()->Display(anAisCylinder, Standard_True);

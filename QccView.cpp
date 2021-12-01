@@ -81,6 +81,11 @@ const Handle(AIS_InteractiveContext)& QccView::getContext() const
 	return myContext;
 }
 
+const Standard_Integer QccView::getSelectMode() const
+{
+	return mySelectMode;
+}
+
 QPaintEngine* QccView::paintEngine() const
 {
 	return 0;
@@ -226,6 +231,7 @@ void QccView::onLButtonDown(const int theFlags, const QPoint thePoint)
 	myYmin = thePoint.y();
 	myXmax = thePoint.x();
 	myYmax = thePoint.y();
+
 	if (theFlags & Qt::ControlModifier)
 	{
 		if (myManipulator->HasActiveMode())
@@ -242,24 +248,30 @@ void QccView::onRButtonDown(const int theFlags, const QPoint /*thePoint*/)
 	if (theFlags & Qt::ControlModifier)
 	{
 		QAction* actionSolid = menu.addAction("Select Solid");
-		QAction* actionFace = menu.addAction("Select Shell");
+		//QAction* actionShell = menu.addAction("Select Shell");
+		QAction* actionFace = menu.addAction("Select Face");
+		//QAction* actionWire = menu.addAction("Select Wire");
 		QAction* actionEdge = menu.addAction("Select Edge");
 		QAction* actionVertex = menu.addAction("Select Vertex");
 		connect(actionSolid, &QAction::triggered, this, &QccView::selectSolid);
+		//connect(actionShell, &QAction::triggered, this, &QccView::selectShell);
 		connect(actionFace, &QAction::triggered, this, &QccView::selectFace);
+		//connect(actionWire, &QAction::triggered, this, &QccView::selectWire);
 		connect(actionEdge, &QAction::triggered, this, &QccView::selectEdge);
 		connect(actionVertex, &QAction::triggered, this, &QccView::selectVertex); 
 		menu.exec(QCursor::pos());
 	}
 	else if (myContext->HasDetected())
 	{
-		QAction* actionMan = menu.addAction("Manipulator");
-		QAction* actionOBB = menu.addAction("OBB Selection");
+		QAction* actionANLS = menu.addAction("Analyse Selection");
+		QAction* actionOBB = menu.addAction("BndBox Selection");
 		QAction* actionLoMesh = menu.addAction("Low Quality Mesh");
 		QAction* actionHiMesh = menu.addAction("High Quality Mesh");
+		QAction* actionMan = menu.addAction("Manipulator");
 		QAction* actionErase = menu.addAction("Delete Selection");
 		connect(actionMan, &QAction::triggered, this, &QccView::initManipulator);
 		connect(actionOBB, &QAction::triggered, this, &QccView::obbSig);
+		connect(actionANLS, &QAction::triggered, this, &QccView::anlsSig);
 		connect(actionLoMesh, &QAction::triggered, this, [=]() { emit meshSig(true); });
 		connect(actionHiMesh, &QAction::triggered, this, [=]() { emit meshSig(false); });
 		connect(actionErase, &QAction::triggered, this, &QccView::deleteSig);
@@ -481,24 +493,42 @@ void QccView::panByMiddleButton(const QPoint& thePoint)
 
 void QccView::selectSolid()
 {
-	const int aSelectMode = AIS_Shape::SelectionMode(TopAbs_SHAPE);
-	myContext->Activate(aSelectMode);
+	mySelectMode = AIS_Shape::SelectionMode(TopAbs_SOLID);
+	myContext->Deactivate();
+	myContext->Activate(mySelectMode);
+}
+
+void QccView::selectShell()
+{
+	mySelectMode = AIS_Shape::SelectionMode(TopAbs_SHELL);
+	myContext->Deactivate();
+	myContext->Activate(mySelectMode);
 }
 
 void QccView::selectFace()
 {	
-	const int aSelectMode = AIS_Shape::SelectionMode(TopAbs_FACE);
-	myContext->Activate(aSelectMode);
+	mySelectMode = AIS_Shape::SelectionMode(TopAbs_FACE);
+	myContext->Deactivate();
+	myContext->Activate(mySelectMode);
+}
+
+void QccView::selectWire()
+{
+	mySelectMode = AIS_Shape::SelectionMode(TopAbs_WIRE);
+	myContext->Deactivate();
+	myContext->Activate(mySelectMode);
 }
 
 void QccView::selectEdge()
 {
-	const int aSelectMode = AIS_Shape::SelectionMode(TopAbs_EDGE);
-	myContext->Activate(aSelectMode);
+	mySelectMode = AIS_Shape::SelectionMode(TopAbs_EDGE);
+	myContext->Deactivate();
+	myContext->Activate(mySelectMode);
 }
 
 void QccView::selectVertex()
 {
-	const int aSelectMode = AIS_Shape::SelectionMode(TopAbs_VERTEX);
-	myContext->Activate(aSelectMode);
+	mySelectMode = AIS_Shape::SelectionMode(TopAbs_VERTEX);
+	myContext->Deactivate();
+	myContext->Activate(mySelectMode);
 }

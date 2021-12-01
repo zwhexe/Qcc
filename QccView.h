@@ -40,10 +40,12 @@ public:
 public:
     QccView(QWidget* parent);
     const Handle(AIS_InteractiveContext)& getContext() const;
+    const Standard_Integer getSelectMode() const;
 
 signals:
     void selectionChanged(void);
     void obbSig(void);
+    void anlsSig(void);
     void meshSig(bool);
     void deleteSig(void);
 
@@ -58,7 +60,9 @@ public slots:
 
     /* mouse select mode */
     void selectSolid(void);
+    void selectShell(void);
     void selectFace(void);
+    void selectWire(void);
     void selectEdge(void);
     void selectVertex(void);
 
@@ -116,6 +120,8 @@ private:
     Handle(V3d_Viewer) myViewer;
     Handle(V3d_View) myView;
     Handle(Graphic3d_GraphicDriver) myDriver;
+
+    Standard_Integer mySelectMode;
 
     Standard_Integer myXmin;
     Standard_Integer myYmin;

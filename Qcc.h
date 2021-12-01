@@ -119,12 +119,17 @@ private slots:
     void testCut(void);
     void testHelix(void);
     void obbShape(void);
+    void anlsShape(void);
     void meshShape(bool);
     void deleteShape(void);
 
 private:
     Ui::QccClass *ui;
     QccView* myQccView;
+    QStatusBar* myStatusBar;
+
+    TopTools_IndexedDataMapOfShapeListOfShape edgeFaceMap;
+
     Handle(AIS_InteractiveObject) aisBox;
     Handle(AIS_InteractiveObject) aisFace;
     TopoDS_Shape myBox;

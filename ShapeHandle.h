@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <ctime>
 
+#include <NCollection_Mat4.hxx>
+
 #include <TopoDS.hxx>
 #include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
@@ -47,9 +49,10 @@ using std::vector;
 
 namespace Hand
 {
+    bool isSameTrsf(gp_Trsf t1, gp_Trsf t2, double precision = 0.0001);
     vector<gp_Pnt> geneRandTri(void);
     double getFaceArea(const TopoDS_Shape& face);
-    double getBndArea(const Bnd_OBB& bndObb, double enlarge = 0.001);
+    double getBndArea(const Bnd_OBB& bndObb, double enlarge = 0.0001);
 
     TopoDS_Shape getBndShape(const Bnd_OBB&);
     TopoDS_Shape TriangleGetShape(std::vector<gp_Pnt>& triPoints);
@@ -63,6 +66,26 @@ namespace Hand
     bool isAABBCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace);
     bool isOBBCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace);
     void displayTriangle(const QccView* myQccView, const vector<gp_Pnt>& triPnt);
+}
+
+static bool Hand::isSameTrsf(gp_Trsf t1, gp_Trsf t2, double precision)
+{
+    NCollection_Mat4<float> mat1, mat2;
+    t1.GetMat4(mat1);
+    t2.GetMat4(mat2);
+
+    for (int r = 0; r < 4; r++)
+    {
+        for (int c = 0; c < 4; c++)
+        {
+            auto v1 = mat1.GetValue(r, c);
+            auto v2 = mat2.GetValue(r, c);
+            if (abs(v1 - v2) > precision)
+                return false;
+        }
+    }
+
+    return true;
 }
 
 static vector<gp_Pnt> Hand::geneRandTri()
