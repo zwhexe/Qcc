@@ -50,6 +50,8 @@ using std::vector;
 namespace Hand
 {
     bool isSameTrsf(gp_Trsf t1, gp_Trsf t2, double precision = 0.0001);
+    void displaySelected(Handle(AIS_Shape) aisObj);
+
     vector<gp_Pnt> geneRandTri(void);
     double getFaceArea(const TopoDS_Shape& face);
     double getBndArea(const Bnd_OBB& bndObb, double enlarge = 0.0001);
@@ -86,6 +88,30 @@ static bool Hand::isSameTrsf(gp_Trsf t1, gp_Trsf t2, double precision)
     }
 
     return true;
+}
+
+static void Hand::displaySelected(Handle(AIS_Shape) aisObj)
+{
+    if (aisObj->Children().Size() > 0)
+    {
+        for (PrsMgr_ListOfPresentableObjectsIter i(aisObj->Children()); i.More(); i.Next())
+        {
+            // 获取当前模型
+            Handle(PrsMgr_PresentableObject) t_object = i.Value();
+            // 若为CModel类型则转换为CModel
+            if (t_object->IsKind(STANDARD_TYPE(AIS_Shape)))
+            {
+                Handle(AIS_Shape) t_child_model = Handle(AIS_Shape)::DownCast(t_object);
+                displaySelected(t_child_model);
+            }
+        }
+    }
+    else
+    {
+        aisObj->SetColor(Quantity_NOC_FIREBRICK);
+        aisObj->SetTransparency(0.7);
+        glbContext->Display(aisObj, Standard_True);
+    }
 }
 
 static vector<gp_Pnt> Hand::geneRandTri()

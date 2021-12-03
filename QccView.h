@@ -59,6 +59,7 @@ public slots:
     void fitAll(void);
 
     /* mouse select mode */
+    void selectShape(void);
     void selectSolid(void);
     void selectShell(void);
     void selectFace(void);

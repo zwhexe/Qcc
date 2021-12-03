@@ -30,7 +30,7 @@ QccView::QccView(QWidget* parent)
 	setMouseTracking(true);
 
 	initContext();
-
+	mySelectMode = -1;	//default mode
 	myManipulator = new AIS_Manipulator();
 }
 
@@ -247,12 +247,14 @@ void QccView::onRButtonDown(const int theFlags, const QPoint /*thePoint*/)
 	QMenu menu;
 	if (theFlags & Qt::ControlModifier)
 	{
+		QAction* actionShape = menu.addAction("Select Shape");
 		QAction* actionSolid = menu.addAction("Select Solid");
 		//QAction* actionShell = menu.addAction("Select Shell");
 		QAction* actionFace = menu.addAction("Select Face");
 		//QAction* actionWire = menu.addAction("Select Wire");
 		QAction* actionEdge = menu.addAction("Select Edge");
 		QAction* actionVertex = menu.addAction("Select Vertex");
+		connect(actionShape, &QAction::triggered, this, &QccView::selectShape);
 		connect(actionSolid, &QAction::triggered, this, &QccView::selectSolid);
 		//connect(actionShell, &QAction::triggered, this, &QccView::selectShell);
 		connect(actionFace, &QAction::triggered, this, &QccView::selectFace);
@@ -489,6 +491,13 @@ void QccView::panByMiddleButton(const QPoint& thePoint)
 	aCenterY = aSize.height() / 2;
 
 	myView->Pan(aCenterX - thePoint.x(), thePoint.y() - aCenterY);
+}
+
+void QccView::selectShape()
+{
+	mySelectMode = AIS_Shape::SelectionMode(TopAbs_SHAPE);
+	myContext->Deactivate();
+	myContext->Activate(mySelectMode);
 }
 
 void QccView::selectSolid()

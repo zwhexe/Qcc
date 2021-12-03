@@ -12,6 +12,12 @@
 #include <QDockWidget>
 #include <QFileDialog>
 
+#include <BRep_Tool.hxx>
+#include <Geom_Curve.hxx>
+#include <GeomAdaptor_Curve.hxx>
+#include <GCPnts_AbscissaPoint.hxx>
+#include <GCPnts_UniformAbscissa.hxx>
+
 #include <IMeshTools_Parameters.hxx>
 #include <IMeshTools_Context.hxx>
 
@@ -24,6 +30,8 @@
 
 #include <TopLoc_Location.hxx>
 #include <STEPControl_Reader.hxx>
+#include <StdSelect_BRepOwner.hxx>
+#include <PrsMgr_PresentableObject.hxx>
 
 Qcc::Qcc(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::QccClass)
@@ -209,6 +217,13 @@ void Qcc::anlsShape()
     {
         Handle(AIS_InteractiveObject) aisObj = myQccView->getContext()->DetectedInteractive();
         TopoDS_Shape topoShp = myQccView->getContext()->DetectedShape();
+        
+        Handle(SelectMgr_EntityOwner) owner = myQccView->getContext()->DetectedOwner();
+        Handle(AIS_InteractiveObject) aisEnty = Handle(AIS_InteractiveObject)::DownCast(owner->Selectable());
+        TopoDS_Shape aisOwn = Handle(StdSelect_BRepOwner)::DownCast(owner)->Shape();
+        gp_Trsf trsf = aisEnty->Transformation();
+        
+        //qDebug() << topoShp.IsEqual(aisOwn);  //is true
 
         int count = 0;
         switch (myQccView->getSelectMode())
@@ -245,14 +260,17 @@ void Qcc::anlsShape()
                 for (auto fc : findFace)
                 {
                     Handle(AIS_Shape) aisFc = new AIS_Shape(fc);
-                    aisFc->SetColor(Quantity_NOC_RED4);
+                    aisFc->SetColor(Quantity_NOC_BLUEVIOLET);
+                    aisFc->SetTransparency(0.5);
                     myQccView->getContext()->Display(aisFc, Standard_True);
                 }
+                qDebug() << "Edge linked" << findFace.Size() << "faces";
             }
-            else
-            {
-                myStatusBar->showMessage(tr("No such edge in Map"));
-            }
+            
+            Standard_Real start, end;
+            Handle(Geom_Curve) curve = BRep_Tool::Curve(edge, start, end);
+            qDebug() << start << end;
+
             break;
         }
         case 1:
@@ -263,18 +281,24 @@ void Qcc::anlsShape()
             myStatusBar->showMessage(info);
             break;
         }
-        default:
-        {   //How many solids in this shape
+        case 0: default:
+        {   //Transfer context to shape and recursive it
+            //Handle(AIS_Shape) aisShape = Handle(AIS_Shape)::DownCast(aisObj);  //is not same?
             edgeFaceMap.Clear();
+            TopTools_IndexedMapOfShape egMap;
             for (TopExp_Explorer exp(topoShp, TopAbs_FACE); exp.More(); exp.Next())
             {
-                {
-                    TopoDS_Face face = TopoDS::Face(exp.Value());
-                    TopExp::MapShapesAndAncestors(face, TopAbs_EDGE, TopAbs_FACE, edgeFaceMap);
-                    count++;
-                }
+                TopoDS_Face face = TopoDS::Face(exp.Value());
+                TopExp::MapShapesAndAncestors(face, TopAbs_EDGE, TopAbs_FACE, edgeFaceMap);
+                count++;
             }
-            QString info = QString("Face Number: %1").arg(count);
+            for (TopExp_Explorer exp(topoShp, TopAbs_EDGE); exp.More(); exp.Next())
+            {
+                TopoDS_Edge edge = TopoDS::Edge(exp.Value());
+                if (!egMap.Contains(edge))
+                    TopExp::MapShapes(edge, TopAbs_EDGE, egMap);
+            }   
+            QString info = QString("Face Number: %1, Edge Number: %2").arg(count).arg(egMap.Size());
             myStatusBar->showMessage(info);
             break;
         }
