@@ -4,6 +4,7 @@
 #include "QccView.h"
 #include <QDebug>
 #include <algorithm>
+#include <string>
 #include <vector>
 #include <cmath>
 #include <cstdlib>
@@ -20,6 +21,9 @@
 #include <AIS_Shape.hxx>
 #include <AIS_ColoredShape.hxx>
 #include <GProp_GProps.hxx>
+#include <GeomLProp_SLProps.hxx>
+#include <BRepAdaptor_Curve.hxx>
+#include <BRepLProp_CLProps.hxx>
 
 #include <BRepBuilderAPI_MakeWire.hxx>
 #include <BRepBuilderAPI_MakeEdge.hxx>
@@ -51,6 +55,9 @@ namespace Hand
 {
     bool isSameTrsf(gp_Trsf t1, gp_Trsf t2, double precision = 0.0001);
     void displaySelected(Handle(AIS_Shape) aisObj);
+    gp_Vec getEdgeNormal(TopoDS_Edge aedge, bool fromStart);
+    gp_Vec getPlaneNormal(TopoDS_Face& face);
+    void getSurfType(TopoDS_Face& face);
 
     vector<gp_Pnt> geneRandTri(void);
     double getFaceArea(const TopoDS_Shape& face);
@@ -111,6 +118,90 @@ static void Hand::displaySelected(Handle(AIS_Shape) aisObj)
         aisObj->SetColor(Quantity_NOC_FIREBRICK);
         aisObj->SetTransparency(0.7);
         glbContext->Display(aisObj, Standard_True);
+    }
+}
+
+static gp_Vec Hand::getEdgeNormal(TopoDS_Edge aedge, bool fromStart = true)
+{
+    BRepAdaptor_Curve adpCurve = BRepAdaptor_Curve(aedge);
+    gp_Dir normalStart;
+    Standard_Real aparam;
+    if (fromStart)
+        aparam = adpCurve.FirstParameter();
+    else
+        aparam = adpCurve.LastParameter();
+    BRepLProp_CLProps props = BRepLProp_CLProps(adpCurve, aparam, 1, 1.0e-7);
+    props.Tangent(normalStart);
+
+    gp_Vec normal = gp_Vec(normalStart);
+    return aedge.Orientation() ? normal.Reversed() : normal;
+}
+
+static gp_Vec Hand::getPlaneNormal(TopoDS_Face& face)
+{
+    //Method 1
+    Handle(Geom_Surface) gfc = BRep_Tool::Surface(face);
+    Standard_Real umin, umax, vmin, vmax;
+    BRepTools::UVBounds(face, umin, umax, vmin, vmax);
+    GeomLProp_SLProps props(gfc, umin, vmin, 1, 0.01);
+    gp_Vec normal1 = gp_Vec(props.Normal());
+
+    //Method 2
+    BRepAdaptor_Surface aSurf(face);
+    Standard_Real u1, u2, v1, v2;
+    u1 = aSurf.FirstUParameter();
+    u2 = aSurf.LastUParameter();
+    v1 = aSurf.FirstVParameter();
+    v2 = aSurf.LastVParameter();
+    gp_Pnt aCenter;
+    gp_Vec aVec1, aVec2, normal2;
+    aSurf.D1((u1 + u2) / 2.0, (v1 + v2) / 2.0, aCenter, aVec1, aVec2);
+    normal2 = aVec1 ^ aVec2;
+
+    return face.Orientation() ? normal1.Reversed() : normal1;
+}
+
+static void Hand::getSurfType(TopoDS_Face& face)
+{
+    Handle(Geom_Surface) gfc = BRep_Tool::Surface(face);
+    GeomAdaptor_Surface GAS(gfc);
+    GeomAbs_SurfaceType faceType = GAS.GetType();
+
+    switch (faceType)
+    {
+    case 0:
+        qDebug() << "Face type is: GeomAbs_Plane";
+        break;
+    case 1:
+        qDebug() << "Face type is: GeomAbs_Cylinder";
+        break;
+    case 2:
+        qDebug() << "Face type is: GeomAbs_Cone";
+        break;
+    case 3:
+        qDebug() << "Face type is: GeomAbs_Sphere";
+        break;
+    case 4:
+        qDebug() << "Face type is: GeomAbs_Torus";
+        break;
+    case 5:
+        qDebug() << "Face type is: GeomAbs_BezierSurface";
+        break;
+    case 6:
+        qDebug() << "Face type is: GeomAbs_BSplineSurface";
+        break;
+    case 7:
+        qDebug() << "Face type is: GeomAbs_SurfaceOfRevolution";
+        break;
+    case 8:
+        qDebug() << "Face type is: GeomAbs_SurfaceOfExtrusion";
+        break;
+    case 9:
+        qDebug() << "Face type is: GeomAbs_OffsetSurface";
+        break;
+    case 10:
+        qDebug() << "Face type is: GeomAbs_OtherSurface";
+        break;
     }
 }
 

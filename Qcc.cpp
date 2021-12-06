@@ -1,7 +1,7 @@
 #include "Qcc.h"
 #include "Obb.h"
 #include "QccView.h"
-#include "ShapeHandle.h"
+#include "ShapeHandle.hpp"
 #include <time.h>
 #include <omp.h>
 
@@ -14,6 +14,7 @@
 
 #include <BRep_Tool.hxx>
 #include <Geom_Curve.hxx>
+#include <GeomLProp_SLProps.hxx>
 #include <GeomAdaptor_Curve.hxx>
 #include <GCPnts_AbscissaPoint.hxx>
 #include <GCPnts_UniformAbscissa.hxx>
@@ -241,35 +242,67 @@ void Qcc::anlsShape()
         }
         case 4:
         {   //How many edges included by this face
+            TopoDS_Face face = TopoDS::Face(topoShp);
             for (TopExp_Explorer exp(topoShp, TopAbs_EDGE); exp.More(); exp.Next())
             {
                 TopoDS_Edge edge = TopoDS::Edge(exp.Value());
                 count++;
-            } 
-            QString info = QString("Edge Number: %1").arg(count);
+            }
+
+            gp_Vec normal = Hand::getPlaneNormal(face);
+            qDebug() << normal.X() << normal.Y() << normal.Z() << ":" << face.Orientation();
+            QString info = QString("Edge Number: %4").arg(count);
             myStatusBar->showMessage(info);
             break;
         }
         case 2:
         {   //What faces commoned this edge
             TopoDS_Edge edge = TopoDS::Edge(topoShp);
+            gp_Dir nor0 = gp_Dir(Hand::getEdgeNormal(edge));
+            qDebug() << nor0.X() << nor0.Y() << nor0.Z() << ":" << edge.Orientation();
             if (edgeFaceMap.Contains(edge))
             {
                 TopoDS_ListOfShape findFace = edgeFaceMap.FindFromKey(edge);
-                TopoDS_ListOfShape filterFace;
-                for (auto fc : findFace)
+                if (findFace.Size() != 2)
                 {
-                    Handle(AIS_Shape) aisFc = new AIS_Shape(fc);
-                    aisFc->SetColor(Quantity_NOC_BLUEVIOLET);
-                    aisFc->SetTransparency(0.5);
-                    myQccView->getContext()->Display(aisFc, Standard_True);
+                    qDebug() << "It's not a 2-face shared edge";
+                    return;
                 }
-                qDebug() << "Edge linked" << findFace.Size() << "faces";
+                //for (auto fc : findFace)
+                //{
+                //    Handle(AIS_Shape) aisFc = new AIS_Shape(fc);
+                //    aisFc->SetColor(Quantity_NOC_BLUEVIOLET);
+                //    aisFc->SetTransparency(0.5);
+                //    myQccView->getContext()->Display(aisFc, Standard_True);
+                //}
+                
+                // calculate two surface dihedral angle
+                TopoDS_Face face1 = TopoDS::Face(findFace.First());
+                TopoDS_Face face2 = TopoDS::Face(findFace.Last());
+                
+                Handle(Geom_Surface) gfc1 = BRep_Tool::Surface(face1);
+                GeomAdaptor_Surface GAS1(gfc1);
+                GeomAbs_SurfaceType faceType1 = GAS1.GetType();
+
+                Handle(Geom_Surface) gfc2 = BRep_Tool::Surface(face2);
+                GeomAdaptor_Surface GAS2(gfc2);
+                GeomAbs_SurfaceType faceType2 = GAS2.GetType();
+
+                if (faceType1 == GeomAbs_Plane && faceType2 == GeomAbs_Plane)
+                {
+                    gp_Vec normal1 = Hand::getPlaneNormal(face1);
+                    gp_Vec normal2 = Hand::getPlaneNormal(face2);
+                    gp_Dir nor12 = gp_Dir(normal1.Crossed(normal2));
+                    gp_Dir nor21 = gp_Dir(normal2.Crossed(normal1));
+                    Standard_Real angular = M_PI - normal1.Angle(normal2);
+                    
+                    if (nor21.IsEqual(nor0, 1e-5))
+                        qDebug() << "Angle is:" << angular / M_PI * 180.0;
+                    else
+                        qDebug() << "Angle is:" << (2 * M_PI - angular) / M_PI * 180.0;
+                }
+
             }
-            
-            Standard_Real start, end;
-            Handle(Geom_Curve) curve = BRep_Tool::Curve(edge, start, end);
-            qDebug() << start << end;
 
             break;
         }
@@ -289,6 +322,7 @@ void Qcc::anlsShape()
             for (TopExp_Explorer exp(topoShp, TopAbs_FACE); exp.More(); exp.Next())
             {
                 TopoDS_Face face = TopoDS::Face(exp.Value());
+                gp_Vec normal = Hand::getPlaneNormal(face);
                 TopExp::MapShapesAndAncestors(face, TopAbs_EDGE, TopAbs_FACE, edgeFaceMap);
                 count++;
             }

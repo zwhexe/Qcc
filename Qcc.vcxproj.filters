@@ -54,6 +54,6 @@
     <ClInclude Include="Obb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ShapeHandle.h" />
+    <ClInclude Include="ShapeHandle.hpp" />
   </ItemGroup>
 </Project>
