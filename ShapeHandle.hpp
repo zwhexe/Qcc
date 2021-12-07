@@ -18,8 +18,17 @@
 #include <TopExp_Explorer.hxx>
 #include <TColgp_Array1OfPnt.hxx>
 
+#include <BRep_Tool.hxx>
+#include <Geom_Curve.hxx>
+#include <GeomLProp_SLProps.hxx>
+#include <GeomAdaptor_Curve.hxx>
+#include <GCPnts_AbscissaPoint.hxx>
+#include <GCPnts_UniformAbscissa.hxx>
+
 #include <AIS_Shape.hxx>
 #include <AIS_ColoredShape.hxx>
+
+#include <BRepGProp.hxx>
 #include <GProp_GProps.hxx>
 #include <GeomLProp_SLProps.hxx>
 #include <BRepAdaptor_Curve.hxx>
@@ -55,6 +64,8 @@ namespace Hand
 {
     bool isSameTrsf(gp_Trsf t1, gp_Trsf t2, double precision = 0.0001);
     void displaySelected(Handle(AIS_Shape) aisObj);
+    double getDihedralAngle(TopoDS_Edge& edge, TopoDS_ListOfShape& findFace, TopoDS_Shape& myShape);
+    double getEdgeLength(TopoDS_Shape& edge);
     gp_Vec getEdgeNormal(TopoDS_Edge aedge, bool fromStart);
     gp_Vec getPlaneNormal(TopoDS_Face& face);
     void getSurfType(TopoDS_Face& face);
@@ -119,6 +130,73 @@ static void Hand::displaySelected(Handle(AIS_Shape) aisObj)
         aisObj->SetTransparency(0.7);
         glbContext->Display(aisObj, Standard_True);
     }
+}
+
+static double Hand::getDihedralAngle(TopoDS_Edge& edge, TopoDS_ListOfShape& findFace, TopoDS_Shape& myShape)
+{
+    Standard_Real first, last;
+    Handle(Geom_Curve) curve = BRep_Tool::Curve(edge, first, last);
+    GeomAdaptor_Curve GAC(curve);
+    GeomAbs_CurveType curveType = GAC.GetType();
+    gp_Dir nor0 = gp_Dir(Hand::getEdgeNormal(edge, true));
+    double angle = 0.0;
+    
+    //TopoDS_Face face1 = TopoDS::Face(findFace.First());
+    //Handle(Geom_Surface) gfc1 = BRep_Tool::Surface(face1);
+    //GeomAdaptor_Surface GAS1(gfc1);
+    //GeomAbs_SurfaceType faceType1 = GAS1.GetType();
+
+    //TopoDS_Face face2 = TopoDS::Face(findFace.Last());
+    //Handle(Geom_Surface) gfc2 = BRep_Tool::Surface(face2);
+    //GeomAdaptor_Surface GAS2(gfc2);
+    //GeomAbs_SurfaceType faceType2 = GAS2.GetType();
+
+    //if (curveType == GeomAbs_Line)
+    //{
+    //    gp_Vec normal1 = Hand::getPlaneNormal(face1);
+    //    gp_Vec normal2 = Hand::getPlaneNormal(face2);
+    //    gp_Dir nor12 = gp_Dir(normal1.Crossed(normal2));
+    //    gp_Dir nor21 = gp_Dir(normal2.Crossed(normal1));
+    //    angle = M_PI - normal1.Angle(normal2);
+
+    //    if (nor21.IsEqual(nor0, 1e-5))
+    //        angle =  angle / M_PI * 180.0;
+    //    else
+    //        angle = (2 * M_PI - angle) / M_PI * 180.0;
+    //}
+
+    BRepAdaptor_Curve adpCurve = BRepAdaptor_Curve(edge);
+    gp_Dir norMid;
+    Standard_Real aparam;
+    aparam = (adpCurve.FirstParameter() + adpCurve.LastParameter()) / 2.0;
+    BRepLProp_CLProps props = BRepLProp_CLProps(adpCurve, aparam, 1, 1.0e-7);
+    props.Tangent(norMid);
+
+    gp_Pnt circleCtr = curve->Value((first + last) / 2.0);
+    gp_Dir circleDir = norMid;
+    TopoDS_Shape wire1 = BRepBuilderAPI_MakeEdge(gp_Circ(gp_Ax2(circleCtr, circleDir), 2)).Shape();
+    TopoDS_Shape wire2 = BRepAlgoAPI_Cut(wire1, myShape).Shape();
+
+    Handle(AIS_Shape) aisWire = new AIS_Shape(wire2);
+    glbContext->Display(aisWire, Standard_True);
+
+    double len1 = Hand::getEdgeLength(wire1);
+    double len2 = Hand::getEdgeLength(wire2);
+    angle = len2 / len1 * 360;
+
+    return angle;
+}
+
+static double Hand::getEdgeLength(TopoDS_Shape& edge)
+{
+    GProp_GProps lprop;
+    BRepGProp::LinearProperties(edge, lprop);
+    return lprop.Mass();
+
+    //Standard_Real first, last;
+    //Handle(Geom_Curve) curve = BRep_Tool::Curve(edge, first, last);
+    //GeomAdaptor_Curve GAC(curve);
+    //return GCPnts_AbscissaPoint::Length(GAC);
 }
 
 static gp_Vec Hand::getEdgeNormal(TopoDS_Edge aedge, bool fromStart = true)

@@ -49,7 +49,6 @@ Qcc::Qcc(QWidget *parent)
     myStatusBar = new QStatusBar(this);
     this->setStatusBar(myStatusBar);
 
-
     ui->menuPrimitive->addSeparator();
     /* make a cylinder with hollow */
     QAction* hollow = new QAction;
@@ -258,8 +257,7 @@ void Qcc::anlsShape()
         case 2:
         {   //What faces commoned this edge
             TopoDS_Edge edge = TopoDS::Edge(topoShp);
-            gp_Dir nor0 = gp_Dir(Hand::getEdgeNormal(edge));
-            qDebug() << nor0.X() << nor0.Y() << nor0.Z() << ":" << edge.Orientation();
+
             if (edgeFaceMap.Contains(edge))
             {
                 TopoDS_ListOfShape findFace = edgeFaceMap.FindFromKey(edge);
@@ -268,40 +266,10 @@ void Qcc::anlsShape()
                     qDebug() << "It's not a 2-face shared edge";
                     return;
                 }
-                //for (auto fc : findFace)
-                //{
-                //    Handle(AIS_Shape) aisFc = new AIS_Shape(fc);
-                //    aisFc->SetColor(Quantity_NOC_BLUEVIOLET);
-                //    aisFc->SetTransparency(0.5);
-                //    myQccView->getContext()->Display(aisFc, Standard_True);
-                //}
                 
-                // calculate two surface dihedral angle
-                TopoDS_Face face1 = TopoDS::Face(findFace.First());
-                TopoDS_Face face2 = TopoDS::Face(findFace.Last());
-                
-                Handle(Geom_Surface) gfc1 = BRep_Tool::Surface(face1);
-                GeomAdaptor_Surface GAS1(gfc1);
-                GeomAbs_SurfaceType faceType1 = GAS1.GetType();
-
-                Handle(Geom_Surface) gfc2 = BRep_Tool::Surface(face2);
-                GeomAdaptor_Surface GAS2(gfc2);
-                GeomAbs_SurfaceType faceType2 = GAS2.GetType();
-
-                if (faceType1 == GeomAbs_Plane && faceType2 == GeomAbs_Plane)
-                {
-                    gp_Vec normal1 = Hand::getPlaneNormal(face1);
-                    gp_Vec normal2 = Hand::getPlaneNormal(face2);
-                    gp_Dir nor12 = gp_Dir(normal1.Crossed(normal2));
-                    gp_Dir nor21 = gp_Dir(normal2.Crossed(normal1));
-                    Standard_Real angular = M_PI - normal1.Angle(normal2);
-                    
-                    if (nor21.IsEqual(nor0, 1e-5))
-                        qDebug() << "Angle is:" << angular / M_PI * 180.0;
-                    else
-                        qDebug() << "Angle is:" << (2 * M_PI - angular) / M_PI * 180.0;
-                }
-
+                //calculate two surface dihedral angle
+                double angle = Hand::getDihedralAngle(edge, findFace, currentShape);
+                qDebug() << "Dihedral Angle:" << angle << "\n";
             }
 
             break;
@@ -317,12 +285,12 @@ void Qcc::anlsShape()
         case 0: default:
         {   //Transfer context to shape and recursive it
             //Handle(AIS_Shape) aisShape = Handle(AIS_Shape)::DownCast(aisObj);  //is not same?
+            currentShape = topoShp;
             edgeFaceMap.Clear();
             TopTools_IndexedMapOfShape egMap;
             for (TopExp_Explorer exp(topoShp, TopAbs_FACE); exp.More(); exp.Next())
             {
                 TopoDS_Face face = TopoDS::Face(exp.Value());
-                gp_Vec normal = Hand::getPlaneNormal(face);
                 TopExp::MapShapesAndAncestors(face, TopAbs_EDGE, TopAbs_FACE, edgeFaceMap);
                 count++;
             }
@@ -658,13 +626,10 @@ void Qcc::makeWedge()
     BRepBuilderAPI_Transform aTransform2(sheet1, aTrsf3);
     TopoDS_Shape sheet2 = aTransform2.Shape();
 
-    /* display TopoDS_Shape sheet1, sheet2 */
-    Handle(AIS_Shape) anAisSheet1 = new AIS_Shape(sheet1);
-    Handle(AIS_Shape) anAisSheet2 = new AIS_Shape(sheet2);
-    anAisSheet1->SetColor(Quantity_NOC_YELLOW1);
-    anAisSheet2->SetColor(Quantity_NOC_YELLOW2);
-    myQccView->getContext()->Display(anAisSheet1, Standard_True);
-    myQccView->getContext()->Display(anAisSheet2, Standard_True);
+    TopoDS_Shape sheet = BRepAlgoAPI_Fuse(sheet1, sheet2);
+    Handle(AIS_Shape) anAisSheet = new AIS_Shape(sheet);
+    anAisSheet->SetColor(Quantity_NOC_YELLOW4);
+    myQccView->getContext()->Display(anAisSheet, Standard_True);
 }
 
 void Qcc::makeHollow()

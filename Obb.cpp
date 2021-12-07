@@ -1,5 +1,5 @@
 #include "Obb.h"
-#include "ShapeHandle.h"
+#include "ShapeHandle.hpp"
 #include <TopExp_Explorer.hxx>
 
 class QccView;

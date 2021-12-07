@@ -128,6 +128,7 @@ private:
     QccView* myQccView;
     QStatusBar* myStatusBar;
 
+    TopoDS_Shape currentShape;
     TopTools_IndexedDataMapOfShapeListOfShape edgeFaceMap;
 
     Handle(AIS_InteractiveObject) aisBox;
