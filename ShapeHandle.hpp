@@ -174,7 +174,7 @@ static double Hand::getDihedralAngle(TopoDS_Edge& edge, TopoDS_ListOfShape& find
 
     gp_Pnt circleCtr = curve->Value((first + last) / 2.0);
     gp_Dir circleDir = norMid;
-    TopoDS_Shape wire1 = BRepBuilderAPI_MakeEdge(gp_Circ(gp_Ax2(circleCtr, circleDir), 2)).Shape();
+    TopoDS_Shape wire1 = BRepBuilderAPI_MakeEdge(gp_Circ(gp_Ax2(circleCtr, circleDir), 0.1)).Shape();
     TopoDS_Shape wire2 = BRepAlgoAPI_Cut(wire1, myShape).Shape();
 
     Handle(AIS_Shape) aisWire = new AIS_Shape(wire2);

@@ -30,6 +30,7 @@
 #include <BRepMesh_Delaun.hxx>
 
 #include <TopLoc_Location.hxx>
+#include <Resource_Unicode.hxx>
 #include <STEPControl_Reader.hxx>
 #include <StdSelect_BRepOwner.hxx>
 #include <PrsMgr_PresentableObject.hxx>
@@ -173,37 +174,33 @@ void Qcc::about()
 
 void Qcc::test()
 {
-    clock_t t1 = clock();
-    for (int i = 0; i < 1000; i++)
-    {
-        makeBox();
-        Obb obbBox(myBox);
-        Obb obbFace(myFace);
-       
-        /* test box collide tri results between AABB and OBB method*/
-        bool boxAABB = Hand::isAABBCollideTri(obbBox.obbShape, myTri);
-        bool boxOBB = Hand::isOBBCollideTri(obbBox.obbShape, myTri);
-        if (boxAABB != boxOBB)
-        {
-            Handle(AIS_Shape) aisTri = new AIS_Shape(myTri);
-            aisTri->SetColor(Quantity_NOC_RED);
-            myQccView->getContext()->Display(aisTri, Standard_True);
-            qDebug() << "boxAABB:" << boxAABB << " " << "boxOBB:" << boxOBB;
-        }
-        
-        /* test face collide tri results between AABB and OBB method*/
-        bool faceAABB = Hand::isAABBCollideTri(obbFace.obbShape, myTri);
-        bool faceOBB = Hand::isOBBCollideTri(obbFace.obbShape, myTri);
-        if (faceAABB != faceOBB)
-        {
-            Handle(AIS_Shape) aisTri = new AIS_Shape(myTri);
-            aisTri->SetColor(Quantity_NOC_RED4);
-            myQccView->getContext()->Display(aisTri, Standard_True);
-            qDebug() << "faceAABB:" << faceAABB << " " << "faceOBB:" << faceOBB;
-        }
-    }
-    clock_t t2 = clock();
-    qDebug() << "Time: " << t2 - t1 << endl;
+    gp_Pln pln(gp_Pnt(0.0, 0.0, 30.0), gp_Dir(0, 0, 1));
+    TopoDS_Shape aTopoFace = BRepBuilderAPI_MakeFace(pln, 0, 30, 0, 40).Shape();
+    gp_Trsf trsf;
+    trsf.SetRotation(gp_Ax1(gp_Pnt(0.0, 0.0, 30.0), gp::DX()), -M_PI_4);
+    BRepBuilderAPI_Transform brepTrsf(aTopoFace, trsf);
+    aTopoFace = brepTrsf.Shape();
+    TopoDS_Shape aTopoBox = BRepPrimAPI_MakePrism(aTopoFace, gp_Vec(0.0, -20.0, -20.0));
+
+    Handle(AIS_Shape) anAisBox = new AIS_Shape(aTopoBox);
+    anAisBox->SetColor(Quantity_NOC_GRAY);
+    //anAisBox->SetTransparency(0.7);
+    myQccView->getContext()->Display(anAisBox, Standard_True);
+
+    gp_Pnt ctr(0.0, -10, 20);
+    Handle(AIS_TextLabel) label = new AIS_TextLabel();
+    QString qstr = "EDGE";
+    auto str = qstr.toLocal8Bit().toStdString();
+    const char* ch = str.c_str();
+    TCollection_ExtendedString outStr;
+    Resource_Unicode::ConvertGBToUnicode(ch, outStr);
+    label->SetText(outStr);
+
+    label->SetColor(Quantity_NOC_GREEN1);
+    label->SetFont("SimHei");
+    label->SetPosition(ctr);
+ 
+    myQccView->getContext()->Display(label, true);
 }
 
 void Qcc::erase()
@@ -472,39 +469,23 @@ void Qcc::save()
 
 void Qcc::makeBox()
 {
-    if (!myBox.IsNull())
-    {
-        myBox.Nullify();
-        myQccView->getContext()->Erase(aisBox, Standard_True);
-    }
-    if (!myFace.IsNull())
-    {
-        myFace.Nullify();
-        myQccView->getContext()->Erase(aisFace, Standard_True);
-    }
-    myQccView->getContext()->UpdateCurrentViewer();
-
     gp_Pln pln(gp_Pnt(0.0, 0.0, 30.0), gp_Dir(0, 0, 1));
     TopoDS_Shape aTopoFace = BRepBuilderAPI_MakeFace(pln, 0, 30, 0, 40).Shape();
     gp_Trsf trsf;
     trsf.SetRotation(gp_Ax1(gp_Pnt(0.0, 0.0, 30.0), gp::DX()), -M_PI_4);
     BRepBuilderAPI_Transform brepTrsf(aTopoFace, trsf);
     aTopoFace = brepTrsf.Shape();
-    myFace = aTopoFace;
     TopoDS_Shape aTopoBox = BRepPrimAPI_MakePrism(aTopoFace, gp_Vec(0.0, -20.0, -20.0));
-    myBox = aTopoBox;
 
     Handle(AIS_Shape) anAisFace = new AIS_Shape(aTopoFace);
     anAisFace->SetColor(Quantity_NOC_BLUE1);
     anAisFace->SetTransparency(0.7);
     myQccView->getContext()->Display(anAisFace, Standard_True);
-    aisBox = anAisFace;
 
     Handle(AIS_Shape) anAisBox = new AIS_Shape(aTopoBox);
     anAisBox->SetColor(Quantity_NOC_CADETBLUE);
     anAisBox->SetTransparency(0.7);
     myQccView->getContext()->Display(anAisBox, Standard_True);
-    aisBox = anAisBox;
 
     vector<gp_Pnt> p = Hand::geneRandTri();
     TopoDS_Edge e1 = BRepBuilderAPI_MakeEdge(p[0], p[1]);
@@ -512,7 +493,6 @@ void Qcc::makeBox()
     TopoDS_Edge e3 = BRepBuilderAPI_MakeEdge(p[2], p[0]);
     TopoDS_Wire wire = BRepBuilderAPI_MakeWire(e1, e2, e3);
     TopoDS_Face tri = BRepBuilderAPI_MakeFace(wire);
-    myTri = tri;
 
     Handle(AIS_Shape) anAisTri = new AIS_Shape(TopoDS_Shape(tri));
     anAisTri->SetColor(Quantity_NOC_LIGHTSKYBLUE);

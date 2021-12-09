@@ -25,6 +25,7 @@
 #include <TColgp_Array1OfPnt2d.hxx>
 
 #include <AIS_InteractiveContext.hxx>
+#include <AIS_TextLabel.hxx>
 #include <AIS_Shape.hxx>
 
 #include <BRepLib.hxx>
@@ -131,11 +132,6 @@ private:
     TopoDS_Shape currentShape;
     TopTools_IndexedDataMapOfShapeListOfShape edgeFaceMap;
 
-    Handle(AIS_InteractiveObject) aisBox;
-    Handle(AIS_InteractiveObject) aisFace;
-    TopoDS_Shape myBox;
-    TopoDS_Shape myFace;
-    TopoDS_Face myTri;
 };
 
 extern Handle(AIS_InteractiveContext) glbContext;
