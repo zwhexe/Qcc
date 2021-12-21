@@ -174,33 +174,32 @@ void Qcc::about()
 
 void Qcc::test()
 {
-    gp_Pln pln(gp_Pnt(0.0, 0.0, 30.0), gp_Dir(0, 0, 1));
-    TopoDS_Shape aTopoFace = BRepBuilderAPI_MakeFace(pln, 0, 30, 0, 40).Shape();
-    gp_Trsf trsf;
-    trsf.SetRotation(gp_Ax1(gp_Pnt(0.0, 0.0, 30.0), gp::DX()), -M_PI_4);
-    BRepBuilderAPI_Transform brepTrsf(aTopoFace, trsf);
-    aTopoFace = brepTrsf.Shape();
-    TopoDS_Shape aTopoBox = BRepPrimAPI_MakePrism(aTopoFace, gp_Vec(0.0, -20.0, -20.0));
+    std::vector<gp_Pnt> p;
+    p.push_back(gp_Pnt(2260.5662540519952, 100.27284629538372, -2346.6437997981088));
+    p.push_back(gp_Pnt(1900.5012923613795, 352.99539790827566, -2341.3012040887334));
+    p.push_back(gp_Pnt(624.60602469474611, 362.63554938157631, -2328.0950983452394));
+    TopoDS_Edge e1 = BRepBuilderAPI_MakeEdge(p[0], p[1]);
+    TopoDS_Edge e2 = BRepBuilderAPI_MakeEdge(p[1], p[2]);
+    TopoDS_Edge e3 = BRepBuilderAPI_MakeEdge(p[2], p[0]);
+    TopoDS_Wire wire = BRepBuilderAPI_MakeWire(e1, e2, e3);
+    TopoDS_Face tri = BRepBuilderAPI_MakeFace(wire);
+    Handle(AIS_Shape) anAisTri = new AIS_Shape(TopoDS_Shape(tri));
+    anAisTri->SetColor(Quantity_NOC_ORANGE);
 
-    Handle(AIS_Shape) anAisBox = new AIS_Shape(aTopoBox);
-    anAisBox->SetColor(Quantity_NOC_GRAY);
-    //anAisBox->SetTransparency(0.7);
-    myQccView->getContext()->Display(anAisBox, Standard_True);
+    Bnd_OBB box;
+    box.SetCenter(gp_Pnt(1868.0528799710974, 254.06519518425876, -2309.9434673550750));
+    box.SetXComponent(gp_Dir(0.59676722415223338, -0.52833658909252157, 0.60392824805908707), 0.59622732593601313);
+    box.SetYComponent(gp_Dir(-0.71096344622362406, 0.00079472771694477640, 0.70322851658737795), 25.000000000000227);
+    box.SetZComponent(gp_Dir(-0.37202131432414720, -0.84903463830042658, -0.37515373469365609), 0.59622732593592787);
+    TopoDS_Shape boxShp = Hand::getBndShape(box);
+    Handle(AIS_Shape) anAisBox = new AIS_Shape(TopoDS_Shape(boxShp));
+    anAisBox->SetColor(Quantity_NOC_RED);
 
-    gp_Pnt ctr(0.0, -10, 20);
-    Handle(AIS_TextLabel) label = new AIS_TextLabel();
-    QString qstr = "EDGE";
-    auto str = qstr.toLocal8Bit().toStdString();
-    const char* ch = str.c_str();
-    TCollection_ExtendedString outStr;
-    Resource_Unicode::ConvertGBToUnicode(ch, outStr);
-    label->SetText(outStr);
-
-    label->SetColor(Quantity_NOC_GREEN1);
-    label->SetFont("SimHei");
-    label->SetPosition(ctr);
- 
-    myQccView->getContext()->Display(label, true);
+    bool collABB = Hand::isAABBCollideTri(box, TopoDS::Face(tri));
+    bool collOBB = Hand::isOBBCollideTri(box, TopoDS::Face(tri));
+    qDebug() << collABB << collOBB;
+    myQccView->getContext()->Display(anAisTri, Standard_True);
+    myQccView->getContext()->Display(anAisBox, Standard_True); 
 }
 
 void Qcc::erase()
@@ -254,7 +253,6 @@ void Qcc::anlsShape()
         case 2:
         {   //What faces commoned this edge
             TopoDS_Edge edge = TopoDS::Edge(topoShp);
-
             if (edgeFaceMap.Contains(edge))
             {
                 TopoDS_ListOfShape findFace = edgeFaceMap.FindFromKey(edge);
@@ -262,12 +260,15 @@ void Qcc::anlsShape()
                 {
                     qDebug() << "It's not a 2-face shared edge";
                     return;
-                }
-                
+                } 
                 //calculate two surface dihedral angle
                 double angle = Hand::getDihedralAngle(edge, findFace, currentShape);
                 qDebug() << "Dihedral Angle:" << angle << "\n";
             }
+            //calulate edge length
+            double length = Hand::getEdgeLength(edge);
+            QString info = QString("Edge length: %4").arg(length);
+            myStatusBar->showMessage(info);
 
             break;
         }
@@ -330,13 +331,13 @@ void Qcc::meshShape(bool allowLow)
         meshParam.ForceFaceDeflection = Standard_False;
         meshParam.AllowQualityDecrease = allowLow;
 
-        Handle(IMeshTools_Context) meshContext = new BRepMesh_Context();
-        meshContext->SetFaceDiscret(new BRepMesh_FaceDiscret(new BRepMesh_DelabellaMeshAlgoFactory()));
-
         BRepMesh_IncrementalMesh mesher;
         mesher.SetShape(meshShp);
         mesher.ChangeParameters() = meshParam;
-        mesher.Perform(meshContext);
+        
+        //Handle(IMeshTools_Context) meshContext = new BRepMesh_Context();
+        //meshContext->SetFaceDiscret(new BRepMesh_FaceDiscret(new BRepMesh_DelabellaMeshAlgoFactory()));
+        //mesher.Perform(meshContext);
 
 #if 1
         int index = 0, count = 0;
@@ -347,23 +348,23 @@ void Qcc::meshShape(bool allowLow)
            
             /* Check whether Bnd_OBB in this face is valid */
             Obb obbFace(face);
-            if (obbFace.isValid()) 
-            { 
-                //qDebug() << "Face number." << index << " is valid, skip mesh\n";
-                continue;   //face bnd_obb match check standard
-            }
+            //if (obbFace.isValid()) 
+            //{ 
+            //    qDebug() << "Face number." << index << " is valid, skip mesh\n";
+            //    continue;   //face bnd_obb match check standard
+            //}
 
             TopLoc_Location aLoc;
             TopoDS_Face aFace = TopoDS::Face(exp.Current());
-            /* Get meshed face data */
             Handle(Poly_Triangulation) triMesh = BRep_Tool::Triangulation(aFace, aLoc);
+            gp_Trsf locTrsf = aLoc.Transformation();
             if (triMesh)
             {
                 TColgp_Array1OfPnt aTriNodes(1, triMesh->NbNodes());
                 aTriNodes = triMesh->Nodes();
                 Poly_Array1OfTriangle aTriangles(1, triMesh->NbTriangles());
                 aTriangles = triMesh->Triangles();
-                qDebug() << "Face" << index << "has" << triMesh->NbTriangles() << "triangles";
+                //qDebug() << "Face" << index << "has" << triMesh->NbTriangles() << "triangles";
                 count += triMesh->NbTriangles();
                 for (int i = 1; i <= triMesh->NbTriangles(); i++)
                 {
@@ -372,11 +373,11 @@ void Qcc::meshShape(bool allowLow)
                     trian.Get(index1, index2, index3);
 
                     gp_Pnt pnt1, pnt2, pnt3;
-                    pnt1 = aTriNodes[index1];
-                    pnt2 = aTriNodes[index2];
-                    pnt3 = aTriNodes[index3];
+                    pnt1 = aTriNodes[index1].Transformed(locTrsf);
+                    pnt2 = aTriNodes[index2].Transformed(locTrsf);
+                    pnt3 = aTriNodes[index3].Transformed(locTrsf);
 
-                    if (pnt1.IsEqual(pnt2, 0.01) || pnt1.IsEqual(pnt3, 0.01) || pnt2.IsEqual(pnt3, 0.01))
+                    if (pnt1.IsEqual(pnt2, 0.0001) || pnt1.IsEqual(pnt3, 0.0001) || pnt2.IsEqual(pnt3, 0.0001))
                         continue;
                     vector<gp_Pnt> triPnt;
                     triPnt.push_back(pnt1);
@@ -385,8 +386,10 @@ void Qcc::meshShape(bool allowLow)
                     Hand::displayTriangle(myQccView, triPnt);
                 }
             }
+            myQccView->getContext()->UpdateCurrentViewer();
         }
-        qDebug() << "Total mesh triangles are:" << count << "\n";
+        QString info = QString("Mesh Triangles: %1").arg(count);
+        myStatusBar->showMessage(info);
 #endif
     }
 }
@@ -477,11 +480,6 @@ void Qcc::makeBox()
     aTopoFace = brepTrsf.Shape();
     TopoDS_Shape aTopoBox = BRepPrimAPI_MakePrism(aTopoFace, gp_Vec(0.0, -20.0, -20.0));
 
-    Handle(AIS_Shape) anAisFace = new AIS_Shape(aTopoFace);
-    anAisFace->SetColor(Quantity_NOC_BLUE1);
-    anAisFace->SetTransparency(0.7);
-    myQccView->getContext()->Display(anAisFace, Standard_True);
-
     Handle(AIS_Shape) anAisBox = new AIS_Shape(aTopoBox);
     anAisBox->SetColor(Quantity_NOC_CADETBLUE);
     anAisBox->SetTransparency(0.7);
@@ -508,24 +506,40 @@ void Qcc::makeCone()
     Handle(AIS_Shape) anAisReducer = new AIS_Shape(aTopoReducer);
 
     anAisReducer->SetColor(Quantity_NOC_BISQUE);
-    myQccView->getContext()->Display(anAisReducer, Standard_True);
+    myQccView->getContext()->Display(anAisReducer, Standard_False);
 
     anAxis.SetLocation(gp_Pnt(8.0, 10.0, 0.0));
     TopoDS_Shape aTopoCone = BRepPrimAPI_MakeCone(anAxis, 3.0, 0.0, 5.0).Shape();
     Handle(AIS_Shape) anAisCone = new AIS_Shape(aTopoCone);
 
     anAisCone->SetColor(Quantity_NOC_CHOCOLATE);
-    myQccView->getContext()->Display(anAisCone, Standard_True);
+    myQccView->getContext()->Display(anAisCone, Standard_False);
+
+    Handle(AIS_TextLabel) label = new AIS_TextLabel();
+    std::string str("CONE");
+    const char* ch = str.c_str();
+    TCollection_ExtendedString outStr;
+    Resource_Unicode::ConvertGBToUnicode(ch, outStr);
+    label->SetText(outStr);
+    label->SetColor(Quantity_NOC_GREEN3);
+    label->SetFont("SimHei");
+    label->SetPosition(gp_Pnt(8.0, 10.0, 0.0));
+
+    gp_Trsf trsfLabel;
+    gp_Vec vec(0.0, 0.0, 5.0);  //what this transformation use?
+    trsfLabel.SetTranslation(vec);
+    label->SetLocalTransformation(trsfLabel);
+    label->SetZLayer(Graphic3d_ZLayerId_TopOSD);
+    myQccView->getContext()->Display(label, Standard_False);
+    myQccView->getContext()->UpdateCurrentViewer();
 }
 
 void Qcc::makeSphere()
 {
     gp_Ax2 anAxis;
     anAxis.SetLocation(gp_Pnt(6.0, 6.0, 30));
-
     TopoDS_Shape aTopoSphere = BRepPrimAPI_MakeSphere(anAxis, 2.5).Shape();
     Handle(AIS_Shape) anAisShpere = new AIS_Shape(aTopoSphere);
-
     anAisShpere->SetColor(Quantity_NOC_BLANCHEDALMOND);
     myQccView->getContext()->Display(anAisShpere, Standard_True);
 }

@@ -69,6 +69,7 @@ namespace Hand
     gp_Vec getEdgeNormal(TopoDS_Edge aedge, bool fromStart);
     gp_Vec getPlaneNormal(TopoDS_Face& face);
     void getSurfType(TopoDS_Face& face);
+    void transformBy(Handle(AIS_InteractiveObject) obj, gp_Trsf trsf);
 
     vector<gp_Pnt> geneRandTri(void);
     double getFaceArea(const TopoDS_Shape& face);
@@ -281,6 +282,22 @@ static void Hand::getSurfType(TopoDS_Face& face)
         qDebug() << "Face type is: GeomAbs_OtherSurface";
         break;
     }
+}
+
+static void Hand::transformBy(Handle(AIS_InteractiveObject) obj, gp_Trsf trsf)
+{
+    gp_Trsf trans;
+    if (obj->Parent())
+    {
+        trans = obj->Parent()->Transformation().Inverted();
+        trans = trans * trsf * obj->Parent()->Transformation();
+        trans = trans * obj->LocalTransformation();
+    }
+    else
+    {
+        trans = trsf * obj->LocalTransformation();
+    }
+    obj->SetLocalTransformation(trans);
 }
 
 static vector<gp_Pnt> Hand::geneRandTri()
@@ -702,5 +719,7 @@ static void Hand::displayTriangle(const QccView* myQccView, const vector<gp_Pnt>
     BRepBuilderAPI_MakeFace mkFace(mkPoly.Wire());
     TopoDS_Shape topoFace = mkFace.Shape();
     Handle(AIS_Shape) aisFace = new AIS_Shape(topoFace);
-    glbContext->Display(aisFace, Standard_True);
+    aisFace->SetColor(Quantity_NOC_GREEN4);
+    aisFace->SetTransparency(0.5);
+    glbContext->Display(aisFace, Standard_False);
 }
