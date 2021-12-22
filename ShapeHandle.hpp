@@ -140,17 +140,17 @@ static double Hand::getDihedralAngle(TopoDS_Edge& edge, TopoDS_ListOfShape& find
     GeomAdaptor_Curve GAC(curve);
     GeomAbs_CurveType curveType = GAC.GetType();
     gp_Dir nor0 = gp_Dir(Hand::getEdgeNormal(edge, true));
-    double angle = 0.0;
+    double angle;
     
-    //TopoDS_Face face1 = TopoDS::Face(findFace.First());
-    //Handle(Geom_Surface) gfc1 = BRep_Tool::Surface(face1);
-    //GeomAdaptor_Surface GAS1(gfc1);
-    //GeomAbs_SurfaceType faceType1 = GAS1.GetType();
+    TopoDS_Face face1 = TopoDS::Face(findFace.First());
+    Handle(Geom_Surface) gfc1 = BRep_Tool::Surface(face1);
+    GeomAdaptor_Surface GAS1(gfc1);
+    GeomAbs_SurfaceType faceType1 = GAS1.GetType();
 
-    //TopoDS_Face face2 = TopoDS::Face(findFace.Last());
-    //Handle(Geom_Surface) gfc2 = BRep_Tool::Surface(face2);
-    //GeomAdaptor_Surface GAS2(gfc2);
-    //GeomAbs_SurfaceType faceType2 = GAS2.GetType();
+    TopoDS_Face face2 = TopoDS::Face(findFace.Last());
+    Handle(Geom_Surface) gfc2 = BRep_Tool::Surface(face2);
+    GeomAdaptor_Surface GAS2(gfc2);
+    GeomAbs_SurfaceType faceType2 = GAS2.GetType();
 
     //if (curveType == GeomAbs_Line)
     //{
@@ -183,9 +183,8 @@ static double Hand::getDihedralAngle(TopoDS_Edge& edge, TopoDS_ListOfShape& find
 
     double len1 = Hand::getEdgeLength(wire1);
     double len2 = Hand::getEdgeLength(wire2);
-    angle = len2 / len1 * 360;
 
-    return angle;
+    return len2 / len1 * 360;
 }
 
 static double Hand::getEdgeLength(TopoDS_Shape& edge)

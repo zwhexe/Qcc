@@ -195,6 +195,13 @@ void Qcc::test()
     Handle(AIS_Shape) anAisBox = new AIS_Shape(TopoDS_Shape(boxShp));
     anAisBox->SetColor(Quantity_NOC_RED);
 
+    gp_Trsf vecTrsf;
+    vecTrsf.SetTranslation(gp_Vec(0.0, 0.0, -20));
+    anAisBox->SetLocalTransformation(vecTrsf);
+    
+    gp_Trsf Trsf = anAisBox->Transformation();
+    gp_Trsf locTrsf = anAisBox->LocalTransformation();
+
     bool collABB = Hand::isAABBCollideTri(box, TopoDS::Face(tri));
     bool collOBB = Hand::isOBBCollideTri(box, TopoDS::Face(tri));
     qDebug() << collABB << collOBB;
