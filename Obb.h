@@ -25,7 +25,7 @@ public:
 	explicit Obb(TopoDS_Shape);
 	~Obb();
 
-	void displayObb(const QccView* myQccView, ObbLevel obblv = ObbLevel::ObbTriangle);
+	void displayObb(const QccView* myQccView, ObbLevel obblv = ObbLevel::ObbShape);
 	double getArea(void);
 	Standard_Boolean isValid(void);
 

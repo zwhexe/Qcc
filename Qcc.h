@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <QMainWindow>
+#include <QException>
 #include <QDebug>
 
 #include <gp_Circ.hxx>

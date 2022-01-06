@@ -2,8 +2,9 @@
 #include "Obb.h"
 #include "QccView.h"
 #include "ShapeHandle.hpp"
-#include <time.h>
 #include <omp.h>
+#include <time.h>
+#include <exception>
 
 #include <QDebug>
 #include <QToolBar>
@@ -34,6 +35,9 @@
 #include <STEPControl_Reader.hxx>
 #include <StdSelect_BRepOwner.hxx>
 #include <PrsMgr_PresentableObject.hxx>
+
+#include <Standard_ErrorHandler.hxx>
+#include <Standard_Failure.hxx>
 
 Qcc::Qcc(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::QccClass)
@@ -174,39 +178,22 @@ void Qcc::about()
 
 void Qcc::test()
 {
-    std::vector<gp_Pnt> p;
-    p.push_back(gp_Pnt(2260.5662540519952, 100.27284629538372, -2346.6437997981088));
-    p.push_back(gp_Pnt(1900.5012923613795, 352.99539790827566, -2341.3012040887334));
-    p.push_back(gp_Pnt(624.60602469474611, 362.63554938157631, -2328.0950983452394));
-    TopoDS_Edge e1 = BRepBuilderAPI_MakeEdge(p[0], p[1]);
-    TopoDS_Edge e2 = BRepBuilderAPI_MakeEdge(p[1], p[2]);
-    TopoDS_Edge e3 = BRepBuilderAPI_MakeEdge(p[2], p[0]);
-    TopoDS_Wire wire = BRepBuilderAPI_MakeWire(e1, e2, e3);
-    TopoDS_Face tri = BRepBuilderAPI_MakeFace(wire);
-    Handle(AIS_Shape) anAisTri = new AIS_Shape(TopoDS_Shape(tri));
-    anAisTri->SetColor(Quantity_NOC_ORANGE);
+    try {
 
-    Bnd_OBB box;
-    box.SetCenter(gp_Pnt(1868.0528799710974, 254.06519518425876, -2309.9434673550750));
-    box.SetXComponent(gp_Dir(0.59676722415223338, -0.52833658909252157, 0.60392824805908707), 0.59622732593601313);
-    box.SetYComponent(gp_Dir(-0.71096344622362406, 0.00079472771694477640, 0.70322851658737795), 25.000000000000227);
-    box.SetZComponent(gp_Dir(-0.37202131432414720, -0.84903463830042658, -0.37515373469365609), 0.59622732593592787);
-    TopoDS_Shape boxShp = Hand::getBndShape(box);
-    Handle(AIS_Shape) anAisBox = new AIS_Shape(TopoDS_Shape(boxShp));
-    anAisBox->SetColor(Quantity_NOC_RED);
+    }
+    catch (QException& q) {
+        QString errInfo(q.what());
+        qDebug() << errInfo;
+    }
 
-    gp_Trsf vecTrsf;
-    vecTrsf.SetTranslation(gp_Vec(0.0, 0.0, -20));
-    anAisBox->SetLocalTransformation(vecTrsf);
-    
-    gp_Trsf Trsf = anAisBox->Transformation();
-    gp_Trsf locTrsf = anAisBox->LocalTransformation();
-
-    bool collABB = Hand::isAABBCollideTri(box, TopoDS::Face(tri));
-    bool collOBB = Hand::isOBBCollideTri(box, TopoDS::Face(tri));
-    qDebug() << collABB << collOBB;
-    myQccView->getContext()->Display(anAisTri, Standard_True);
-    myQccView->getContext()->Display(anAisBox, Standard_True); 
+    try {
+        throw Standard_DomainError("Cannot cope with this condition");
+    }
+    catch (const Standard_Failure& f) { 
+        QString errType(f.DynamicType()->Name());
+        QString errInfo(f.GetMessageString());
+        qDebug() << errType << "[" << errInfo << "]";
+    }
 }
 
 void Qcc::erase()
@@ -313,7 +300,7 @@ void Qcc::anlsShape()
     }
 }
 
-void Qcc::meshShape(bool allowLow)
+void Qcc::meshShape(bool isCustom)
 {
     if (myQccView->getContext()->HasDetectedShape())
     {
@@ -321,68 +308,47 @@ void Qcc::meshShape(bool allowLow)
         myQccView->getContext()->Erase(aisObj, Standard_True);
 
         TopoDS_Shape topoShp = myQccView->getContext()->DetectedShape();
-        TopoDS_Shape meshShp = topoShp;
-
-        IMeshTools_Parameters meshParam;
-        meshParam.Angle = 10;
-        meshParam.Deflection = 10;
-        meshParam.AngleInterior = 10.0;
-        meshParam.DeflectionInterior = 10.0;
-        meshParam.MinSize = -1.0;
-        meshParam.InParallel = Standard_True;
-        meshParam.Relative = Standard_False;
-        meshParam.InternalVerticesMode = Standard_True;
-        meshParam.ControlSurfaceDeflection = Standard_True;
-        meshParam.CleanModel = Standard_True;
-        meshParam.AdjustMinSize = Standard_False;
-        meshParam.ForceFaceDeflection = Standard_False;
-        meshParam.AllowQualityDecrease = allowLow;
+        TopoDS_Shape meshShp = topoShp; 
 
         BRepMesh_IncrementalMesh mesher;
         mesher.SetShape(meshShp);
-        mesher.ChangeParameters() = meshParam;
-        
-        //Handle(IMeshTools_Context) meshContext = new BRepMesh_Context();
-        //meshContext->SetFaceDiscret(new BRepMesh_FaceDiscret(new BRepMesh_DelabellaMeshAlgoFactory()));
-        //mesher.Perform(meshContext);
 
+        if (isCustom)
+        {
+            IMeshTools_Parameters meshParam;
+            Hand::setMeshParam(meshParam);
+            mesher.ChangeParameters() = meshParam;
+
+            //Handle(IMeshTools_Context) meshContext = new BRepMesh_Context();
+            //meshContext->SetFaceDiscret(new BRepMesh_FaceDiscret(new BRepMesh_DelabellaMeshAlgoFactory()));
+            //mesher.Perform(meshContext);
+        }
 #if 1
-        int index = 0, count = 0;
+        int count = 0;
         for (TopExp_Explorer exp(meshShp, TopAbs_FACE); exp.More(); exp.Next())
         {
-            ++index;
-            TopoDS_Shape face = exp.Value();
-           
-            /* Check whether Bnd_OBB in this face is valid */
-            Obb obbFace(face);
-            //if (obbFace.isValid()) 
-            //{ 
-            //    qDebug() << "Face number." << index << " is valid, skip mesh\n";
-            //    continue;   //face bnd_obb match check standard
-            //}
-
             TopLoc_Location aLoc;
             TopoDS_Face aFace = TopoDS::Face(exp.Current());
             Handle(Poly_Triangulation) triMesh = BRep_Tool::Triangulation(aFace, aLoc);
-            gp_Trsf locTrsf = aLoc.Transformation();
             if (triMesh)
             {
                 TColgp_Array1OfPnt aTriNodes(1, triMesh->NbNodes());
                 aTriNodes = triMesh->Nodes();
+
                 Poly_Array1OfTriangle aTriangles(1, triMesh->NbTriangles());
                 aTriangles = triMesh->Triangles();
-                //qDebug() << "Face" << index << "has" << triMesh->NbTriangles() << "triangles";
-                count += triMesh->NbTriangles();
+
+                count += triMesh->NbTriangles(); //count total meshes
                 for (int i = 1; i <= triMesh->NbTriangles(); i++)
                 {
                     Poly_Triangle trian = aTriangles.Value(i);
                     Standard_Integer index1, index2, index3;
                     trian.Get(index1, index2, index3);
 
-                    gp_Pnt pnt1, pnt2, pnt3;
-                    pnt1 = aTriNodes[index1].Transformed(locTrsf);
-                    pnt2 = aTriNodes[index2].Transformed(locTrsf);
-                    pnt3 = aTriNodes[index3].Transformed(locTrsf);
+                    gp_Pnt pnt1, pnt2, pnt3; //Tri pnt have to be transformed!
+                    pnt1 = aTriNodes[index1].Transformed(aLoc.Transformation());
+                    pnt2 = aTriNodes[index2].Transformed(aLoc.Transformation());
+                    pnt3 = aTriNodes[index3].Transformed(aLoc.Transformation());
 
                     if (pnt1.IsEqual(pnt2, 0.0001) || pnt1.IsEqual(pnt3, 0.0001) || pnt2.IsEqual(pnt3, 0.0001))
                         continue;
@@ -412,32 +378,9 @@ void Qcc::obbShape()
         TopoDS_Shape topoShp = aisContext->DetectedShape();
         if (topoShp.IsNull()) 
             return;
-            
-#if 0
-        /* delete original TopoDS_Shape AIS_InteractiveObject */
-        Handle(AIS_InteractiveObject) aisObj = myQccView->getContext()->DetectedInteractive();
-        myQccView->getContext()->Erase(aisObj, Standard_True);
-        /* display triangle face by face from Obb */
+
         Obb obbShp(topoShp);
         obbShp.displayObb(myQccView);
-
-#elif 1
-        /* create bndOBB for selected shape */
-        BRepBndLib ret;
-        Bnd_OBB obbShape;
-        ret.AddOBB(topoShp, obbShape, true, true, false);
-        obbShape.Enlarge(0.1);
-        //qDebug() << obbShape.XHSize();
-        //qDebug() << obbShape.YHSize();
-        //qDebug() << obbShape.ZHSize();
-
-        /* convert BndOBB to TopoShape for display */
-        TopoDS_Shape topoObb = Hand::getBndShape(obbShape);
-        Handle(AIS_Shape) abox = new AIS_Shape(topoObb);
-        abox->SetColor(Quantity_NOC_GREEN);
-        abox->SetTransparency(0.9);
-        myQccView->getContext()->Display(abox, Standard_True);
-#endif
     }
 }
 

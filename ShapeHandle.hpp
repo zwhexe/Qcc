@@ -11,6 +11,7 @@
 #include <ctime>
 
 #include <NCollection_Mat4.hxx>
+#include <IMeshTools_Parameters.hxx>
 
 #include <TopoDS.hxx>
 #include <TopoDS_Face.hxx>
@@ -87,6 +88,8 @@ namespace Hand
     bool isAABBCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace);
     bool isOBBCollideTri(Bnd_OBB& bndObb, TopoDS_Face& triFace);
     void displayTriangle(const QccView* myQccView, const vector<gp_Pnt>& triPnt);
+
+    void setMeshParam(IMeshTools_Parameters& meshParam);
 }
 
 static bool Hand::isSameTrsf(gp_Trsf t1, gp_Trsf t2, double precision)
@@ -718,7 +721,23 @@ static void Hand::displayTriangle(const QccView* myQccView, const vector<gp_Pnt>
     BRepBuilderAPI_MakeFace mkFace(mkPoly.Wire());
     TopoDS_Shape topoFace = mkFace.Shape();
     Handle(AIS_Shape) aisFace = new AIS_Shape(topoFace);
-    aisFace->SetColor(Quantity_NOC_GREEN4);
-    aisFace->SetTransparency(0.5);
+    aisFace->SetColor(Quantity_NOC_DARKOLIVEGREEN4);
     glbContext->Display(aisFace, Standard_False);
+}
+
+static void Hand::setMeshParam(IMeshTools_Parameters& meshParam)
+{
+    meshParam.Angle = 10;
+    meshParam.Deflection = 10;
+    meshParam.AngleInterior = 10.0;
+    meshParam.DeflectionInterior = 10.0;
+    meshParam.MinSize = -1.0;
+    meshParam.InParallel = Standard_True;
+    meshParam.Relative = Standard_False;
+    meshParam.InternalVerticesMode = Standard_True;
+    meshParam.ControlSurfaceDeflection = Standard_True;
+    meshParam.CleanModel = Standard_True;
+    meshParam.AdjustMinSize = Standard_False;
+    meshParam.ForceFaceDeflection = Standard_False;
+    meshParam.AllowQualityDecrease = Standard_True;
 }

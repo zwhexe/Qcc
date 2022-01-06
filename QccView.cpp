@@ -267,15 +267,15 @@ void QccView::onRButtonDown(const int theFlags, const QPoint /*thePoint*/)
 	{
 		QAction* actionANLS = menu.addAction("Analyse Selection");
 		QAction* actionOBB = menu.addAction("BndBox Selection");
-		QAction* actionLoMesh = menu.addAction("Low Quality Mesh");
-		QAction* actionHiMesh = menu.addAction("High Quality Mesh");
+		QAction* actionHiMesh = menu.addAction("Default Mesh");
+		QAction* actionLoMesh = menu.addAction("Custom Mesh");
 		QAction* actionMan = menu.addAction("Manipulator");
 		QAction* actionErase = menu.addAction("Delete Selection");
 		connect(actionMan, &QAction::triggered, this, &QccView::initManipulator);
 		connect(actionOBB, &QAction::triggered, this, &QccView::obbSig);
 		connect(actionANLS, &QAction::triggered, this, &QccView::anlsSig);
-		connect(actionLoMesh, &QAction::triggered, this, [=]() { emit meshSig(true); });
 		connect(actionHiMesh, &QAction::triggered, this, [=]() { emit meshSig(false); });
+		connect(actionLoMesh, &QAction::triggered, this, [=]() { emit meshSig(true); });
 		connect(actionErase, &QAction::triggered, this, &QccView::deleteSig);
 		menu.exec(QCursor::pos());
 	}
