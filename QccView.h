@@ -57,6 +57,7 @@ public slots:
     void rotate(void);
     void reset(void);
     void fitAll(void);
+    void redraw(void);
 
     /* mouse select mode */
     void selectShape(void);

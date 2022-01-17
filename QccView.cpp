@@ -132,6 +132,11 @@ void QccView::fitAll(void)
 {
 	myView->FitAll();
 	myView->ZFitAll();
+	//myView->Redraw();
+}
+
+void QccView::redraw(void)
+{
 	myView->Redraw();
 }
 

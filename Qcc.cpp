@@ -1,17 +1,19 @@
 #include "Qcc.h"
 #include "Obb.h"
+#include "Mesh.h"
 #include "QccView.h"
 #include "ShapeHandle.hpp"
 #include <omp.h>
 #include <time.h>
 #include <exception>
-
+#include <QTime>
 #include <QDebug>
 #include <QToolBar>
 #include <QTreeView>
 #include <QMessageBox>
 #include <QDockWidget>
 #include <QFileDialog>
+#include <QJsonDocument>
 
 #include <BRep_Tool.hxx>
 #include <Geom_Curve.hxx>
@@ -178,21 +180,27 @@ void Qcc::about()
 
 void Qcc::test()
 {
-    try {
+    QString t_json = "*.json";
+    QString all_filter;
+    all_filter += t_json;
 
-    }
-    catch (QException& q) {
-        QString errInfo(q.what());
-        qDebug() << errInfo;
+    // get open file's path
+    QString filename = QFileDialog::getOpenFileName(this, tr("Load File"), "D:/", all_filter);
+    if (filename.isEmpty())  // 若文件名为空，则不执行操作
+    {
+        return;
     }
 
-    try {
-        throw Standard_DomainError("Cannot cope with this condition");
-    }
-    catch (const Standard_Failure& f) { 
-        QString errType(f.DynamicType()->Name());
-        QString errInfo(f.GetMessageString());
-        qDebug() << errType << "[" << errInfo << "]";
+    QFile file(filename);
+    if (file.open(QIODevice::ReadWrite))
+    {
+        QTime qtime;
+        qtime.start();
+        QByteArray allData = file.readAll();
+        file.close();
+        QJsonParseError jsonErr;
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(allData, &jsonErr);
+        qDebug() << "Qt read json file cost" << qtime.elapsed() << "ms";
     }
 }
 
@@ -308,62 +316,16 @@ void Qcc::meshShape(bool isCustom)
         myQccView->getContext()->Erase(aisObj, Standard_True);
 
         TopoDS_Shape topoShp = myQccView->getContext()->DetectedShape();
-        TopoDS_Shape meshShp = topoShp; 
+        Mesh mesh(topoShp);
+    
+        std::thread meshThread(&Mesh::makeTriangle, &mesh, isCustom);
+        meshThread.join();
 
-        BRepMesh_IncrementalMesh mesher;
-        mesher.SetShape(meshShp);
-
-        if (isCustom)
-        {
-            IMeshTools_Parameters meshParam;
-            Hand::setMeshParam(meshParam);
-            mesher.ChangeParameters() = meshParam;
-
-            //Handle(IMeshTools_Context) meshContext = new BRepMesh_Context();
-            //meshContext->SetFaceDiscret(new BRepMesh_FaceDiscret(new BRepMesh_DelabellaMeshAlgoFactory()));
-            //mesher.Perform(meshContext);
-        }
-#if 1
-        int count = 0;
-        for (TopExp_Explorer exp(meshShp, TopAbs_FACE); exp.More(); exp.Next())
-        {
-            TopLoc_Location aLoc;
-            TopoDS_Face aFace = TopoDS::Face(exp.Current());
-            Handle(Poly_Triangulation) triMesh = BRep_Tool::Triangulation(aFace, aLoc);
-            if (triMesh)
-            {
-                TColgp_Array1OfPnt aTriNodes(1, triMesh->NbNodes());
-                aTriNodes = triMesh->Nodes();
-
-                Poly_Array1OfTriangle aTriangles(1, triMesh->NbTriangles());
-                aTriangles = triMesh->Triangles();
-
-                count += triMesh->NbTriangles(); //count total meshes
-                for (int i = 1; i <= triMesh->NbTriangles(); i++)
-                {
-                    Poly_Triangle trian = aTriangles.Value(i);
-                    Standard_Integer index1, index2, index3;
-                    trian.Get(index1, index2, index3);
-
-                    gp_Pnt pnt1, pnt2, pnt3; //Tri pnt have to be transformed!
-                    pnt1 = aTriNodes[index1].Transformed(aLoc.Transformation());
-                    pnt2 = aTriNodes[index2].Transformed(aLoc.Transformation());
-                    pnt3 = aTriNodes[index3].Transformed(aLoc.Transformation());
-
-                    if (pnt1.IsEqual(pnt2, 0.0001) || pnt1.IsEqual(pnt3, 0.0001) || pnt2.IsEqual(pnt3, 0.0001))
-                        continue;
-                    vector<gp_Pnt> triPnt;
-                    triPnt.push_back(pnt1);
-                    triPnt.push_back(pnt2);
-                    triPnt.push_back(pnt3);
-                    Hand::displayTriangle(myQccView, triPnt);
-                }
-            }
-            myQccView->getContext()->UpdateCurrentViewer();
-        }
-        QString info = QString("Mesh Triangles: %1").arg(count);
+        std::thread drawThread(&Mesh::displayTriangle, &mesh);
+        drawThread.join();
+        
+        QString info = QString("Mesh Triangles: %1").arg(mesh.countTriangle());
         myStatusBar->showMessage(info);
-#endif
     }
 }
 
@@ -435,6 +397,7 @@ void Qcc::makeBox()
     anAisBox->SetTransparency(0.7);
     myQccView->getContext()->Display(anAisBox, Standard_True);
 
+#if 0
     vector<gp_Pnt> p = Hand::geneRandTri();
     TopoDS_Edge e1 = BRepBuilderAPI_MakeEdge(p[0], p[1]);
     TopoDS_Edge e2 = BRepBuilderAPI_MakeEdge(p[1], p[2]);
@@ -445,6 +408,7 @@ void Qcc::makeBox()
     Handle(AIS_Shape) anAisTri = new AIS_Shape(TopoDS_Shape(tri));
     anAisTri->SetColor(Quantity_NOC_LIGHTSKYBLUE);
     myQccView->getContext()->Display(anAisTri, Standard_True);
+#endif
 }
 
 void Qcc::makeCone()
@@ -490,7 +454,7 @@ void Qcc::makeSphere()
     anAxis.SetLocation(gp_Pnt(6.0, 6.0, 30));
     TopoDS_Shape aTopoSphere = BRepPrimAPI_MakeSphere(anAxis, 2.5).Shape();
     Handle(AIS_Shape) anAisShpere = new AIS_Shape(aTopoSphere);
-    anAisShpere->SetColor(Quantity_NOC_BLANCHEDALMOND);
+    anAisShpere->SetColor(Quantity_NOC_PALEGREEN3);
     myQccView->getContext()->Display(anAisShpere, Standard_True);
 }
 
