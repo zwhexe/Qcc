@@ -13,6 +13,7 @@
 #include <QMessageBox>
 #include <QDockWidget>
 #include <QFileDialog>
+#include <QJsonObject>
 #include <QJsonDocument>
 
 #include <BRep_Tool.hxx>
@@ -191,17 +192,34 @@ void Qcc::test()
         return;
     }
 
-    QFile file(filename);
-    if (file.open(QIODevice::ReadWrite))
+    auto t1 = std::chrono::steady_clock::now();
+    QFile qfile(filename);
+    std::ifstream file(filename.toStdString());
+    if (!qfile.open(QIODevice::ReadWrite))
     {
-        QTime qtime;
-        qtime.start();
-        QByteArray allData = file.readAll();
-        file.close();
-        QJsonParseError jsonErr;
-        QJsonDocument jsonDoc = QJsonDocument::fromJson(allData, &jsonErr);
-        qDebug() << "Qt read json file cost" << qtime.elapsed() << "ms";
+        qDebug() << "Open file failed£¡";
+        return;
     }
+
+    QByteArray allData = qfile.readAll();
+    qfile.close();
+    QJsonParseError jsonErr;
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(allData, &jsonErr);
+    QJsonObject jsonObj = jsonDoc.object();
+    auto t2 = std::chrono::steady_clock::now();
+    double dur = std::chrono::duration<double, std::milli>(t2 - t1).count();
+    qDebug() << "Qt::OpenJson() size" << jsonObj.count();
+    qDebug() << "Qt::OpenJson() cost" << dur << "ms";
+
+    QJsonDocument jsonDocument;
+    jsonDocument.setObject(jsonObj);
+    QFile jfile("D:\\Test\\Layout.json");
+    jfile.open(QIODevice::WriteOnly);
+    jfile.write(jsonDocument.toJson());
+    jfile.close();
+    auto t3 = std::chrono::steady_clock::now();
+    dur = std::chrono::duration<double, std::milli>(t3 - t2).count();
+    qDebug() << "Qt::SaveJson() cost" << dur << "ms";
 }
 
 void Qcc::erase()

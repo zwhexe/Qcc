@@ -2,6 +2,8 @@
 
 #include <QWidget>
 #include <QGLWidget>
+#include <QRubberband>
+#include <chrono>
 #ifdef _WIN32
 #include <WNT_Window.hxx>
 #else
