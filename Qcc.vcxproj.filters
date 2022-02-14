@@ -57,9 +57,6 @@
     <ClInclude Include="Obb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ShapeHandle.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Mesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>

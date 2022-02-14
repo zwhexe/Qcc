@@ -124,6 +124,7 @@ private slots:
     void anlsShape(void);
     void meshShape(bool);
     void deleteShape(void);
+    int autoDetect(const TopoDS_Shape&);
 
 private:
     Ui::QccClass *ui;
@@ -132,7 +133,7 @@ private:
 
     TopoDS_Shape currentShape;
     TopTools_IndexedDataMapOfShapeListOfShape edgeFaceMap;
-
+    TopTools_IndexedMapOfShape edgeMap;
 };
 
 extern Handle(AIS_InteractiveContext) glbContext;

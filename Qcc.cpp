@@ -25,7 +25,6 @@
 
 #include <IMeshTools_Parameters.hxx>
 #include <IMeshTools_Context.hxx>
-
 #include <BRepMesh_IncrementalMesh.hxx>
 #include <BRepMesh_DelabellaMeshAlgoFactory.hxx>
 #include <BRepMesh_EdgeDiscret.hxx>
@@ -305,7 +304,7 @@ void Qcc::anlsShape()
             //Handle(AIS_Shape) aisShape = Handle(AIS_Shape)::DownCast(aisObj);  //is not same?
             currentShape = topoShp;
             edgeFaceMap.Clear();
-            TopTools_IndexedMapOfShape egMap;
+            edgeMap.Clear();
             for (TopExp_Explorer exp(topoShp, TopAbs_FACE); exp.More(); exp.Next())
             {
                 TopoDS_Face face = TopoDS::Face(exp.Value());
@@ -315,15 +314,42 @@ void Qcc::anlsShape()
             for (TopExp_Explorer exp(topoShp, TopAbs_EDGE); exp.More(); exp.Next())
             {
                 TopoDS_Edge edge = TopoDS::Edge(exp.Value());
-                if (!egMap.Contains(edge))
-                    TopExp::MapShapes(edge, TopAbs_EDGE, egMap);
+                if (!edgeMap.Contains(edge))
+                    TopExp::MapShapes(edge, TopAbs_EDGE, edgeMap);
             }   
-            QString info = QString("Face Number: %1, Edge Number: %2").arg(count).arg(egMap.Size());
+            QString info = QString("Face Number: %1, Edge Number: %2").arg(count).arg(edgeMap.Size());
             myStatusBar->showMessage(info);
             break;
         }
         }
     }
+}
+
+int Qcc::autoDetect(const TopoDS_Shape& topoShp)
+{
+    int count = 0;
+    TopTools_IndexedDataMapOfShapeListOfShape egfcMap;
+    TopTools_IndexedMapOfShape egMap;
+    for (TopExp_Explorer exp(topoShp, TopAbs_FACE); exp.More(); exp.Next())
+    {
+        TopoDS_Face face = TopoDS::Face(exp.Value());
+        TopExp::MapShapesAndAncestors(face, TopAbs_EDGE, TopAbs_FACE, egfcMap);
+        count++;
+    }
+    edgeFaceMap = egfcMap;
+
+    for (TopExp_Explorer exp(topoShp, TopAbs_EDGE); exp.More(); exp.Next())
+    {
+        TopoDS_Edge edge = TopoDS::Edge(exp.Value());
+        if (!egMap.Contains(edge))
+            TopExp::MapShapes(edge, TopAbs_EDGE, egMap);
+    } 
+    edgeMap = egMap;
+
+    QString info = QString("Face Number: %1, Edge Number: %2").arg(count).arg(egMap.Size());
+    myStatusBar->showMessage(info);
+
+    return count;
 }
 
 void Qcc::meshShape(bool isCustom)
@@ -386,12 +412,16 @@ void Qcc::load()
     stepReader.PrintCheckLoad(Standard_False, IFSelect_ItemsByEntity);
     for (Standard_Integer i = 1; i <= stepReader.NbRootsForTransfer(); i++)
         stepReader.TransferRoot(i);
-    
+ 
     for (Standard_Integer i = 1; i <= stepReader.NbShapes(); i++)
     {
-        TopoDS_Shape stepShp = stepReader.Shape(i);
-        myQccView->show(stepShp);
+        currentShape = stepReader.Shape(i); 
     }
+
+    int count = autoDetect(currentShape);
+    QString info = QString("Face Number: %1, Edge Number: %2").arg(count).arg(edgeMap.Size());
+
+    myQccView->show(currentShape);
     return;
 }
 
