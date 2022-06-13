@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <vector>
-
+#include <set>
 #include <QMainWindow>
 #include <QException>
 #include <QDebug>
@@ -124,6 +124,7 @@ private slots:
     void anlsShape(void);
     void meshShape(bool);
     void deleteShape(void);
+    void selectShape(void);
     int autoDetect(const TopoDS_Shape&);
 
 private:
@@ -131,6 +132,7 @@ private:
     QccView* myQccView;
     QStatusBar* myStatusBar;
 
+    std::vector<TopoDS_Shape> selectedShape;
     TopoDS_Shape currentShape;
     TopTools_IndexedDataMapOfShapeListOfShape edgeFaceMap;
     TopTools_IndexedMapOfShape edgeMap;

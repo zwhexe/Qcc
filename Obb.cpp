@@ -9,11 +9,11 @@ Obb::Obb(TopoDS_Shape topoShp) : topoShape(topoShp)
     if (topoShp.IsNull())
         return;
 
-    /* obbShape contruction */
-    BRepBndLib repbnd;
+    /* shape obb contruction */
+    BRepBndLib repbnd;  //obbShape is Bnd_OBB
     repbnd.AddOBB(topoShape, obbShape, true, true, false);
 
-    /* obbList construction */
+    /* face obb list construction */
     for (TopExp_Explorer exp(topoShape, TopAbs_FACE); exp.More(); exp.Next())
     {
         BRepBndLib facebnd;
@@ -24,6 +24,25 @@ Obb::Obb(TopoDS_Shape topoShp) : topoShape(topoShp)
         TopoDS_Face topoface = TopoDS::Face(exp.Current());
         triList.push_back(Hand::geneFaceTri(topoface));
     }
+}
+
+Obb::Obb(std::vector<TopoDS_Shape> topoShps)
+{
+    std::vector<gp_Pnt> pntList;
+    for (auto shp : topoShps)
+    {
+        Bnd_OBB obb;
+        BRepBndLib build_bnd;
+        build_bnd.AddOBB(shp, obb, true, true, false);
+
+        // get vertex from bnd vertex
+        gp_Pnt pnt[8];
+        obb.GetVertex(pnt);
+        for (int i = 0; i < 8; i++)
+            pntList.push_back(pnt[i]);
+    }
+
+   obbShape = Bnd_OBB_genWithPoints(pntList);
 }
 
 Obb::~Obb()
@@ -107,4 +126,39 @@ Standard_Boolean Obb::isValid()
     {
         return Standard_True;
     }
+}
+
+Bnd_OBB Obb::Bnd_OBB_genWithPoints(std::vector<gp_Pnt> Points)
+{
+    //主成分分析法(PCA)
+    Bnd_OBB retObb;
+    //构建 Nx3 的矩阵
+    math_Matrix X(0, Points.size()-1, 0, 2);
+    for (int i = 0; i < Points.size(); i++)
+    {
+        X(i, 0) = Points[i].X();
+        X(i, 1) = Points[i].Y();
+        X(i, 2) = Points[i].Z();
+    }
+    //计算一维度均值
+    math_Vector meanVal(0, 2, 0.0);
+    for (int i = 0; i < X.RowNumber(); i++)
+    {
+        meanVal += X.Row(i);
+    }
+    meanVal /= X.RowNumber();
+    math_Vector meanVecRow(meanVal);
+    //样本均值化为0
+    math_Matrix X2(X);
+    for (int i = 0; i < X2.RowNumber(); i++)
+    {
+        X2.Row(i) -= meanVecRow;
+    }
+    //计算协方差矩阵: C= XT*X/(n-1)
+    math_Matrix C2 = X2.Transposed() * X2;
+    C2 = C2 / (X2.RowNumber() - 1.0);
+    //获取特征值和特征向量 
+
+
+    return retObb;
 }

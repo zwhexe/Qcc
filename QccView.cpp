@@ -81,9 +81,19 @@ const Handle(AIS_InteractiveContext)& QccView::getContext() const
 	return myContext;
 }
 
+const Handle(AIS_Selection)& QccView::getSelection() const
+{
+	return mySelection;
+}
+
 const Standard_Integer QccView::getSelectMode() const
 {
 	return mySelectMode;
+}
+
+void QccView::selectionChanged()
+{
+	mySelection = myContext->Selection();
 }
 
 QPaintEngine* QccView::paintEngine() const
@@ -304,14 +314,15 @@ void QccView::onLButtonUp(const int theFlags, const QPoint thePoint)
 	if (myRectBand)
 	{
 		myRectBand->hide();
+		emit selectSig();
 	}
 
 	/* reset myManipulator */
 	myManipulator->StopTransform(Standard_True);
 
-	/* Ctrl for multi selection */
+	/* click the shape? */
 	if (thePoint.x() == myXmin && thePoint.y() == myYmin)
-	{
+	{   /* Ctrl for multi selection */
 		if (theFlags & Qt::ControlModifier)
 		{
 			multiInputEvent(thePoint.x(), thePoint.y());
@@ -380,11 +391,11 @@ void QccView::onMouseMove(const int theFlags, const QPoint thePoint)
 	/* Ctrl for multi selection */
 	if (theFlags & Qt::ControlModifier)
 	{
-		moveEvent(thePoint.x(), thePoint.y());
+		multiMoveEvent(thePoint.x(), thePoint.y());
 	}
 	else
 	{
-		multiMoveEvent(thePoint.x(), thePoint.y());
+		moveEvent(thePoint.x(), thePoint.y());
 	}
 }
 
@@ -437,14 +448,14 @@ void QccView::multiDragEvent(const int x, const int y)
 {
 	myContext->ShiftSelect(myXmin, myYmin, x, y, myView, Standard_True);
 
-	emit selectionChanged();
+	selectionChanged();
 }
 
 void QccView::dragEvent(const int x, const int y)
 {
 	myContext->Select(myXmin, myYmin, x, y, myView, Standard_True);
 	
-	emit selectionChanged();
+	selectionChanged();
 }
 
 void QccView::multiMoveEvent(const int x, const int y)
@@ -464,7 +475,7 @@ void QccView::multiInputEvent(const int x, const int y)
 
 	myContext->ShiftSelect(Standard_True);
 
-	emit selectionChanged();
+	selectionChanged();
 }
 
 void QccView::inputEvent(const int x, const int y)
@@ -474,7 +485,7 @@ void QccView::inputEvent(const int x, const int y)
 
 	myContext->Select(Standard_True);
 
-	emit selectionChanged();
+	selectionChanged();
 }
 
 void QccView::addItemInPopup(QMenu* /*theMenu*/)

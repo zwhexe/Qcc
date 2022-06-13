@@ -114,6 +114,7 @@ void Qcc::createActions(void)
     connect(myQccView, &QccView::meshSig, this, &Qcc::meshShape);
     connect(myQccView, &QccView::anlsSig, this, &Qcc::anlsShape);
     connect(myQccView, &QccView::deleteSig, this, &Qcc::deleteShape);
+    connect(myQccView, &QccView::selectSig, this, &Qcc::selectShape);
 }
 
 void Qcc::createMenus(void)
@@ -180,45 +181,11 @@ void Qcc::about()
 
 void Qcc::test()
 {
-    QString t_json = "*.json";
-    QString all_filter;
-    all_filter += t_json;
-
-    // get open file's path
-    QString filename = QFileDialog::getOpenFileName(this, tr("Load File"), "D:/", all_filter);
-    if (filename.isEmpty())  // 若文件名为空，则不执行操作
-    {
+    if (selectedShape.empty())
         return;
-    }
 
-    auto t1 = std::chrono::steady_clock::now();
-    QFile qfile(filename);
-    std::ifstream file(filename.toStdString());
-    if (!qfile.open(QIODevice::ReadWrite))
-    {
-        qDebug() << "Open file failed！";
-        return;
-    }
-
-    QByteArray allData = qfile.readAll();
-    qfile.close();
-    QJsonParseError jsonErr;
-    QJsonDocument jsonDoc = QJsonDocument::fromJson(allData, &jsonErr);
-    QJsonObject jsonObj = jsonDoc.object();
-    auto t2 = std::chrono::steady_clock::now();
-    double dur = std::chrono::duration<double, std::milli>(t2 - t1).count();
-    qDebug() << "Qt::OpenJson() size" << jsonObj.count();
-    qDebug() << "Qt::OpenJson() cost" << dur << "ms";
-
-    QJsonDocument jsonDocument;
-    jsonDocument.setObject(jsonObj);
-    QFile jfile("D:\\Test\\Layout.json");
-    jfile.open(QIODevice::WriteOnly);
-    jfile.write(jsonDocument.toJson());
-    jfile.close();
-    auto t3 = std::chrono::steady_clock::now();
-    dur = std::chrono::duration<double, std::milli>(t3 - t2).count();
-    qDebug() << "Qt::SaveJson() cost" << dur << "ms";
+    Obb obbShps(selectedShape);
+    obbShps.displayObb(myQccView);
 }
 
 void Qcc::erase()
@@ -977,6 +944,18 @@ void Qcc::deleteShape()
     {
         Handle(AIS_InteractiveObject) aisObj = myQccView->getContext()->DetectedInteractive();
         myQccView->getContext()->Erase(aisObj, Standard_True);
+    }
+}
+
+void Qcc::selectShape()
+{
+    selectedShape.clear();
+    const Handle(AIS_Selection) selection = myQccView->getSelection();
+    for (selection->Init(); selection->More(); selection->Next())
+    {
+        Handle(SelectMgr_EntityOwner) entity = selection->Value();
+        TopoDS_Shape shp = Handle(StdSelect_BRepOwner)::DownCast(entity)->Shape();
+        selectedShape.push_back(shp);
     }
 }
 
