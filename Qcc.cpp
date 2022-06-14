@@ -456,7 +456,8 @@ void Qcc::makeCone()
 
     gp_Trsf trsfLabel;
     gp_Vec vec(0.0, 0.0, 5.0);  //what this transformation use?
-    trsfLabel.SetTranslation(vec);
+    trsfLabel.SetTranslation(vec); //this is trsf for label
+    label->SetPosition(label->Position().Transformed(trsfLabel));
     label->SetLocalTransformation(trsfLabel);
     label->SetZLayer(Graphic3d_ZLayerId_TopOSD);
     myQccView->getContext()->Display(label, Standard_False);
